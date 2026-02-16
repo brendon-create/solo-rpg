@@ -82,13 +82,45 @@ export const syncToSheet = async (sheetUrl, data) => {
 /**
  * 從 Google Sheet 讀取數據
  */
-export const fetchFromSheet = async (sheetUrl) => {
-  const sheetId = extractSheetId(sheetUrl)
-  if (!sheetId) {
-    throw new Error('無效的 Google Sheet URL')
-  }
+export const fetchFromSheet = async () => {
+  try {
+    // 從 localStorage 讀取用戶設定的 Web App URL
+    const webAppUrl = localStorage.getItem('solo-leveling-webapp-url')
+    
+    if (!webAppUrl) {
+      console.warn('⚠️ 尚未設置 Apps Script Web App URL')
+      return null
+    }
 
-  // 實際實現會在設置好 Apps Script 後進行
-  console.log('從 Sheet 讀取數據:', sheetId)
-  return {}
+    console.log('🔄 正在從 Google Sheet 讀取數據...')
+    
+    // 使用 GET 請求讀取數據
+    const response = await fetch(webAppUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const result = await response.json()
+    
+    if (result.success && result.hasData) {
+      console.log('✅ 成功從雲端讀取數據')
+      return {
+        questData: result.questData,
+        totalDays: result.totalDays,
+        lastUpdate: result.lastUpdate
+      }
+    } else {
+      console.log('ℹ️ 雲端尚無今日數據')
+      return null
+    }
+  } catch (error) {
+    console.error('❌ 從雲端讀取數據失敗:', error)
+    return null
+  }
 }

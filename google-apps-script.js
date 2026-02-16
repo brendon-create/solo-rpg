@@ -149,11 +149,154 @@ function initializeSheet(sheet) {
 }
 
 function doGet(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const data = sheet.getDataRange().getValues();
-
-  return ContentService.createTextOutput(JSON.stringify({
-    success: true,
-    data: data
-  })).setMimeType(ContentService.MimeType.JSON);
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    
+    // 如果 sheet 是空的，返回空數據
+    if (sheet.getLastRow() === 0) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        hasData: false,
+        message: 'Sheet is empty'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // 獲取今天的日期
+    const today = new Date();
+    const todayDateString = Utilities.formatDate(today, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    
+    // 查找今天的記錄
+    const dataRange = sheet.getDataRange();
+    const values = dataRange.getValues();
+    let todayRow = null;
+    let totalDays = 0;
+    
+    for (let i = 1; i < values.length; i++) {
+      totalDays++; // 計算總天數
+      const rowDate = values[i][0];
+      if (rowDate) {
+        const rowDateString = Utilities.formatDate(new Date(rowDate), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        if (rowDateString === todayDateString) {
+          todayRow = values[i];
+          break;
+        }
+      }
+    }
+    
+    // 如果沒有今天的記錄，返回總天數和空數據
+    if (!todayRow) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        hasData: false,
+        totalDays: totalDays,
+        message: 'No data for today'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // 解析今天的數據（按照 sheet 的欄位順序）
+    const parseTasks = (taskString) => {
+      if (!taskString) return [];
+      return taskString.split(';').map(item => {
+        const [name, completed] = item.split(':');
+        return { name, completed: completed === 'true' };
+      });
+    };
+    
+    const questData = {
+      str: {
+        jogging: todayRow[2] || false,
+        weightTraining: todayRow[3] || false,
+        hiit: todayRow[4] || false,
+        goals: {
+          goal1: {
+            name: todayRow[5] || '',
+            unit: todayRow[6] || '',
+            initial: todayRow[7] || 0,
+            target: todayRow[8] || 0,
+            current: todayRow[9] || 0
+          },
+          goal2: {
+            name: todayRow[10] || '',
+            unit: todayRow[11] || '',
+            initial: todayRow[12] || 0,
+            target: todayRow[13] || 0,
+            current: todayRow[14] || 0
+          },
+          goal3: {
+            name: todayRow[15] || '',
+            unit: todayRow[16] || '',
+            initial: todayRow[17] || 0,
+            target: todayRow[18] || 0,
+            current: todayRow[19] || 0
+          }
+        }
+      },
+      hp: {
+        water: todayRow[20] || 0,
+        waterTarget: todayRow[21] || 2400,
+        wakeTime: todayRow[22] || null,
+        sleepTime: todayRow[23] || null,
+        waterRecords: [], // 這個需要從前端維護
+        wakeTimeGoals: { best: '05:00', great: '05:30', ok: '06:00', late: '06:00+' },
+        sleepTimeGoals: { best: '21:00', great: '21:30', ok: '22:00', late: '22:00+' },
+        meals: {
+          breakfast: todayRow[24] || false,
+          lunch: todayRow[26] || false,
+          dinner: todayRow[27] || false
+        },
+        fasting: {
+          breakfastFast: todayRow[25] || false,
+          dinnerFast: todayRow[28] || false,
+          fullDayFast: todayRow[29] || false
+        }
+      },
+      int: {
+        tasks: parseTasks(todayRow[30])
+      },
+      mp: {
+        tasks: parseTasks(todayRow[31])
+      },
+      crt: {
+        tasks: parseTasks(todayRow[32])
+      },
+      gold: {
+        income: todayRow[33] || '',
+        incomeTarget: todayRow[34] || 3000,
+        action1Done: todayRow[35] || false,
+        action1Text: todayRow[36] || '',
+        action2Done: todayRow[37] || false,
+        action2Text: todayRow[38] || '',
+        action3Done: todayRow[39] || false,
+        action3Text: todayRow[40] || ''
+      },
+      skl: {
+        enabled: todayRow[41] || false,
+        taskName: todayRow[42] || '',
+        completed: todayRow[43] || false
+      },
+      rsn: {
+        celebrated: todayRow[44] || false,
+        gratitude: todayRow[45] || ''
+      },
+      alcohol: {
+        reason: todayRow[46] || '',
+        feeling: todayRow[47] || ''
+      },
+      lastUpdate: todayRow[1] ? new Date(todayRow[1]).toISOString() : new Date().toISOString()
+    };
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      hasData: true,
+      totalDays: totalDays,
+      questData: questData,
+      lastUpdate: todayRow[1] ? new Date(todayRow[1]).toISOString() : null
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }

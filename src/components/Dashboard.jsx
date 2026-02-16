@@ -11,7 +11,7 @@ import SKLQuests from './quests/SKLQuests'
 import AlcoholAudit from './AlcoholAudit'
 import SettingsModal from './SettingsModal'
 import OnboardingTutorial from './OnboardingTutorial'
-import { syncToSheet } from '../services/googleSheets'
+import { syncToSheet, fetchFromSheet } from '../services/googleSheets'
 
 export default function Dashboard({ sheetUrl, onReset }) {
   const [showSettings, setShowSettings] = useState(false)
@@ -96,6 +96,65 @@ export default function Dashboard({ sheetUrl, onReset }) {
       localStorage.setItem('solo-leveling-total-days', '1')
     }
   }, [])
+
+  // 🔄 多設備同步：啟動時從雲端讀取最新數據
+  useEffect(() => {
+    const syncFromCloud = async () => {
+      try {
+        const webAppUrl = localStorage.getItem('solo-leveling-webapp-url')
+        if (!webAppUrl) {
+          console.log('ℹ️ 未設置 Apps Script URL，跳過雲端同步')
+          return
+        }
+
+        console.log('🔄 檢查雲端數據...')
+        const cloudData = await fetchFromSheet()
+
+        if (!cloudData) {
+          console.log('ℹ️ 雲端無數據或讀取失敗')
+          return
+        }
+
+        // 比較本地和雲端的時間戳
+        const localLastUpdate = questData.lastUpdate ? new Date(questData.lastUpdate).getTime() : 0
+        const cloudLastUpdate = cloudData.lastUpdate ? new Date(cloudData.lastUpdate).getTime() : 0
+
+        console.log('📊 本地更新時間:', new Date(localLastUpdate).toLocaleString())
+        console.log('☁️ 雲端更新時間:', new Date(cloudLastUpdate).toLocaleString())
+
+        // 如果雲端數據更新，使用雲端數據
+        if (cloudLastUpdate > localLastUpdate) {
+          console.log('✅ 雲端數據較新，正在同步到本地...')
+          
+          // 保留本地的實時數據（如 waterRecords）
+          const mergedQuestData = {
+            ...cloudData.questData,
+            hp: {
+              ...cloudData.questData.hp,
+              waterRecords: questData.hp?.waterRecords || [] // 保留本地的飲水記錄
+            }
+          }
+          
+          setQuestData(mergedQuestData)
+          setTotalDays(cloudData.totalDays)
+          
+          // 更新 localStorage
+          localStorage.setItem('solo-leveling-quests', JSON.stringify(mergedQuestData))
+          localStorage.setItem('solo-leveling-total-days', cloudData.totalDays.toString())
+          
+          console.log('✅ 已從雲端同步最新數據（已保留本地實時記錄）')
+        } else {
+          console.log('ℹ️ 本地數據已是最新')
+        }
+      } catch (error) {
+        console.error('❌ 雲端同步失敗:', error)
+      }
+    }
+
+    // 延遲 1 秒執行，避免干擾初始化
+    const timer = setTimeout(syncFromCloud, 1000)
+    return () => clearTimeout(timer)
+  }, []) // 只在組件首次掛載時執行
 
   // 每週提醒更新長期目標（每7天，第一次使用後一週才提醒）
   useEffect(() => {
