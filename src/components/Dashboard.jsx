@@ -119,11 +119,11 @@ export default function Dashboard({ sheetUrl, onReset }) {
         const localLastUpdate = questData.lastUpdate ? new Date(questData.lastUpdate).getTime() : 0
         const cloudLastUpdate = cloudData.lastUpdate ? new Date(cloudData.lastUpdate).getTime() : 0
 
-        console.log('📊 本地更新時間:', new Date(localLastUpdate).toLocaleString())
-        console.log('☁️ 雲端更新時間:', new Date(cloudLastUpdate).toLocaleString())
+        console.log('📊 本地更新時間:', localLastUpdate ? new Date(localLastUpdate).toLocaleString() : '無數據（初始狀態）')
+        console.log('☁️ 雲端更新時間:', cloudLastUpdate ? new Date(cloudLastUpdate).toLocaleString() : '無數據')
 
-        // 如果雲端數據更新，使用雲端數據
-        if (cloudLastUpdate > localLastUpdate) {
+        // 如果本地無真實數據（lastUpdate 為 null），或雲端數據較新，使用雲端數據
+        if (!questData.lastUpdate || cloudLastUpdate > localLastUpdate) {
           console.log('✅ 雲端數據較新，正在同步到本地...')
           
           // 保留本地的實時數據（如 waterRecords）
@@ -734,6 +734,6 @@ function getInitialQuestData() {
     },
     rsn: { celebrated: false, gratitude: '' },
     alcohol: { reason: '', feeling: '' },
-    lastUpdate: new Date().toISOString()
+    lastUpdate: null  // 初始數據沒有時間戳，確保雲端數據優先
   }
 }
