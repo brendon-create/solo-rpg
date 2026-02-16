@@ -36,7 +36,7 @@ export default function SettingsModal({ isOpen, onClose, currentSheetUrl, onRese
   const handleSave = () => {
     if (webAppUrl) {
       localStorage.setItem('solo-leveling-webapp-url', webAppUrl)
-      showLevelingNotification('🎮 遊戲初始化成功！數據同步已啟動，開始你的升級之旅！')
+      showLevelingNotification('🎮 遊戲初始化成功！數據同步已啟動，頁面即將重新載入以同步雲端數據...')
     } else {
       onClose()
     }
@@ -51,6 +51,12 @@ export default function SettingsModal({ isOpen, onClose, currentSheetUrl, onRese
   const handleNotificationClose = () => {
     setShowNotification(false)
     onClose()
+    // 如果剛剛儲存了 URL，重新載入頁面以觸發雲端同步
+    if (notificationMessage.includes('遊戲初始化成功')) {
+      setTimeout(() => {
+        window.location.reload()
+      }, 500)
+    }
   }
 
   if (!isOpen) return null
