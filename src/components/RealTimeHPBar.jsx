@@ -27,48 +27,71 @@ export default function RealTimeHPBar({ questData, onUpdate }) {
 
   // 計算飲水HP（50%部分）
   const calculateWaterHP = () => {
-    const now = currentTime
-    const hour = now.getHours()
+    try {
+      const now = currentTime
+      const hour = now.getHours()
 
-    const waterRecords = questData?.waterRecords || []
+      const waterRecords = questData?.waterRecords || []
 
-    if (waterRecords.length === 0) {
-      // 沒有任何飲水記錄，初始狀態為0
-      return 0
-    }
+      if (waterRecords.length === 0) {
+        // 沒有任何飲水記錄，初始狀態為0
+        return 0
+      }
 
-    // 只在6:00-21:00期間追蹤，非追蹤時段維持滿分
-    if (hour < 6 || hour >= 21) {
-      return 50
-    }
-
-    // 找到最近一次喝水記錄
-    const lastRecord = waterRecords[waterRecords.length - 1]
-    const lastDrinkTime = new Date(lastRecord.time)
-    const lastDrinkAmount = lastRecord.amount
-
-    // 計算距離最後喝水的分鐘數（精確到秒級）
-    const secondsSinceLastDrink = Math.floor((now - lastDrinkTime) / 1000)
-    const minutesSinceLastDrink = Math.floor(secondsSinceLastDrink / 60)
-
-    // 如果剛喝完水（最近200cc以上），立即補滿到50%，然後開始遞減
-    if (lastDrinkAmount >= 200 && minutesSinceLastDrink < 60) {
-      // 剛喝完水的前10秒內，直接返回50%
-      if (secondsSinceLastDrink < 10) {
+      // 只在6:00-21:00期間追蹤，非追蹤時段維持滿分
+      if (hour < 6 || hour >= 21) {
         return 50
       }
-      // 從50%開始，在60分鐘內遞減到10%
-      const decayRate = 40 / 60 // 每分鐘遞減約0.67%
-      const currentHP = 50 - (minutesSinceLastDrink * decayRate)
-      return Math.max(Math.floor(currentHP), 10) // 使用floor避免向上取整
-    } else if (minutesSinceLastDrink >= 60) {
-      // 超過60分鐘沒喝水，降到最低10%
-      return 10
-    } else {
-      // 喝的量不足200cc，部分補充
-      const partialBonus = (lastDrinkAmount / 200) * 20 // 最多補20%
-      const baseHP = 30 - (minutesSinceLastDrink * 40 / 60)
-      return Math.round(Math.max(baseHP + partialBonus, 10))
+
+      // 找到最近一次喝水記錄
+      const lastRecord = waterRecords[waterRecords.length - 1]
+      if (!lastRecord || !lastRecord.time) {
+        console.warn('飲水記錄格式錯誤:', lastRecord)
+        return 0
+      }
+
+      const lastDrinkTime = new Date(lastRecord.time)
+      const lastDrinkAmount = Number(lastRecord.amount) || 0
+
+      // 驗證時間是否有效
+      if (isNaN(lastDrinkTime.getTime())) {
+        console.error('無效的飲水時間:', lastRecord.time)
+        return 0
+      }
+
+      // 計算距離最後喝水的分鐘數（精確到秒級）
+      const secondsSinceLastDrink = Math.floor((now - lastDrinkTime) / 1000)
+      const minutesSinceLastDrink = Math.floor(secondsSinceLastDrink / 60)
+
+      // 防止異常的負數或過大值
+      if (secondsSinceLastDrink < 0 || minutesSinceLastDrink > 1440) {
+        console.warn('異常的時間差:', { secondsSinceLastDrink, minutesSinceLastDrink })
+        return 0
+      }
+
+      // 如果剛喝完水（最近200cc以上），立即補滿到50%，然後開始遞減
+      if (lastDrinkAmount >= 200 && minutesSinceLastDrink < 60) {
+        // 剛喝完水的前10秒內，直接返回50%
+        if (secondsSinceLastDrink < 10) {
+          return 50
+        }
+        // 從50%開始，在60分鐘內遞減到10%
+        const decayRate = 40 / 60 // 每分鐘遞減約0.67%
+        const currentHP = 50 - (minutesSinceLastDrink * decayRate)
+        return Math.max(Math.floor(currentHP), 10) // 最低10%
+      } else if (minutesSinceLastDrink >= 60) {
+        // 超過60分鐘沒喝水，降到最低10%（不會變成0或負數）
+        return 10
+      } else {
+        // 喝的量不足200cc，部分補充
+        const partialBonus = (lastDrinkAmount / 200) * 20 // 最多補20%
+        const baseHP = 30 - (minutesSinceLastDrink * 40 / 60)
+        const finalHP = Math.max(baseHP + partialBonus, 10)
+        return Math.round(Math.min(Math.max(finalHP, 0), 50)) // 確保在 0-50 範圍內
+      }
+    } catch (error) {
+      console.error('計算飲水HP時發生錯誤:', error)
+      return 0 // 發生錯誤時返回安全值
     }
   }
 

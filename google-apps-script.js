@@ -88,12 +88,24 @@ function doPost(e) {
       data.skl?.completed || false,
       data.rsn?.celebrated || false,
       data.rsn?.gratitude || '',
+      data.alcohol?.enabled !== undefined ? data.alcohol.enabled : true,
       data.alcohol?.reason || '',
       data.alcohol?.feeling || ''
     ];
 
-    if (todayRowIndex > 0) {
-      // 更新今天的記錄
+    // 安全檢查：確保不會覆蓋表頭（第1行）
+    if (todayRowIndex === 1) {
+      throw new Error('錯誤：嘗試覆蓋表頭！資料可能損壞，請檢查 Sheet 結構。');
+    }
+
+    // 驗證欄位數量是否匹配
+    const headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (row.length !== headerRow.length) {
+      throw new Error(`欄位數量不匹配！資料有 ${row.length} 個欄位，但表頭有 ${headerRow.length} 個欄位。請更新 Apps Script 程式碼。`);
+    }
+
+    if (todayRowIndex > 1) {
+      // 更新今天的記錄（確保不是第1行）
       const range = sheet.getRange(todayRowIndex, 1, 1, row.length);
       range.setValues([row]);
     } else {
@@ -138,7 +150,7 @@ function initializeSheet(sheet) {
     'GOLD_行動3完成', 'GOLD_行動3內容',
     'SKL_啟用', 'SKL_任務名稱', 'SKL_完成',
     'RSN_慶祝', 'RSN_感恩筆記',
-    '酒精_理由', '酒精_感受'
+    '酒精_啟用', '酒精_理由', '酒精_感受'
   ];
 
   sheet.appendRow(headers);
@@ -289,8 +301,9 @@ function doGet(e) {
         gratitude: todayRow[45] || ''
       },
       alcohol: {
-        reason: todayRow[46] || '',
-        feeling: todayRow[47] || ''
+        enabled: todayRow[46] !== undefined ? todayRow[46] : true,
+        reason: todayRow[47] || '',
+        feeling: todayRow[48] || ''
       },
       lastUpdate: todayRow[1] ? new Date(todayRow[1]).toISOString() : new Date().toISOString()
     };

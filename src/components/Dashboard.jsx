@@ -306,34 +306,14 @@ export default function Dashboard({ sheetUrl, onReset }) {
   }
 
   const calculateSTRToday = () => {
-    // 每日任務分數 (70%)
+    // 雷達圖只顯示每日任務完成度 (100%)
+    // 長期目標不計入雷達圖，僅在 STR 區塊內單獨顯示
     const dailyTasks = questData.str?.dailyTasks || []
     const completedTasks = dailyTasks.filter(t => t.completed).length
     const totalTasks = dailyTasks.length || 1 // 避免除以0
-    const dailyScore = (completedTasks / totalTasks) * 70
+    const dailyScore = (completedTasks / totalTasks) * 100
 
-    // 長期目標進度 (30%)
-    const goals = questData.str?.goals || {
-      goal1: { name: 'VO2 Max', unit: '', initial: 33, target: 42, current: 33 },
-      goal2: { name: '體脂率', unit: '%', initial: 26, target: 18, current: 26 },
-      goal3: { name: '5公里跑步', unit: '分鐘', initial: 60, target: 30, current: 60 }
-    }
-
-    const calculateGoalProgress = (goal) => {
-      const { initial, target, current } = goal
-      if (initial === target) return 100
-      const progress = ((current - initial) / (target - initial)) * 100
-      return Math.max(0, Math.min(100, progress))
-    }
-
-    const goal1Progress = calculateGoalProgress(goals.goal1)
-    const goal2Progress = calculateGoalProgress(goals.goal2)
-    const goal3Progress = calculateGoalProgress(goals.goal3)
-
-    const avgGoalProgress = (goal1Progress + goal2Progress + goal3Progress) / 3
-    const goalScore = (avgGoalProgress / 100) * 30
-
-    return Math.round(dailyScore + goalScore)
+    return Math.round(dailyScore)
   }
 
   const calculateINTToday = () => {
