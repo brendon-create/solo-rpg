@@ -11,7 +11,9 @@ import SKLQuests from './quests/SKLQuests'
 import AlcoholAudit from './AlcoholAudit'
 import SettingsModal from './SettingsModal'
 import OnboardingTutorial from './OnboardingTutorial'
+import ScriptUpdateModal from './ScriptUpdateModal'
 import { syncToSheet, fetchFromSheet } from '../services/googleSheets'
+import { migrateData, isScriptOutdated, REQUIRED_SCRIPT_VERSION } from '../utils/versionManager'
 
 export default function Dashboard({ sheetUrl, onReset }) {
   const [showSettings, setShowSettings] = useState(false)
@@ -26,6 +28,8 @@ export default function Dashboard({ sheetUrl, onReset }) {
   })
   const [showNameConflictModal, setShowNameConflictModal] = useState(false)
   const [conflictNames, setConflictNames] = useState({ local: '', cloud: '' })
+  const [showScriptUpdateModal, setShowScriptUpdateModal] = useState(false)
+  const [detectedScriptVersion, setDetectedScriptVersion] = useState(null)
 
   // 先定義所有狀態變量
   const [questData, setQuestData] = useState(() => {
@@ -127,6 +131,15 @@ export default function Dashboard({ sheetUrl, onReset }) {
         return
       }
 
+      // 檢查 Apps Script 版本
+      if (cloudData.scriptVersion) {
+        setDetectedScriptVersion(cloudData.scriptVersion)
+        if (isScriptOutdated(cloudData.scriptVersion)) {
+          console.warn(`⚠️ Apps Script 版本過舊: ${cloudData.scriptVersion} (需要 ${REQUIRED_SCRIPT_VERSION})`)
+          setShowScriptUpdateModal(true)
+        }
+      }
+
       // 比較本地和雲端的時間戳
       const localLastUpdate = questData.lastUpdate ? new Date(questData.lastUpdate).getTime() : 0
       const cloudLastUpdate = cloudData.lastUpdate ? new Date(cloudData.lastUpdate).getTime() : 0
@@ -140,9 +153,12 @@ export default function Dashboard({ sheetUrl, onReset }) {
       if (!questData.lastUpdate || cloudLastUpdate > localLastUpdate) {
         console.log('✅ 雲端數據較新，正在同步到本地...')
 
+        // 執行資料遷移（如果需要）
+        const migratedCloudData = migrateData(cloudData.questData)
+
         // 智能合併：取兩邊較新的數據
         const mergedQuestData = {
-          ...cloudData.questData,
+          ...migratedCloudData,
           hp: {
             ...cloudData.questData.hp,
             // 直接使用雲端的 waterRecords（因為已包含完整歷史記錄）
@@ -614,6 +630,14 @@ export default function Dashboard({ sheetUrl, onReset }) {
         {showOnboarding && (
           <OnboardingTutorial onComplete={() => setShowOnboarding(false)} />
         )}
+
+        {/* Apps Script 版本過舊提示 */}
+        <ScriptUpdateModal
+          isOpen={showScriptUpdateModal}
+          onClose={() => setShowScriptUpdateModal(false)}
+          currentVersion={detectedScriptVersion}
+          requiredVersion={REQUIRED_SCRIPT_VERSION}
+        />
 
         {/* 設定彈窗 */}
         <SettingsModal

@@ -1,5 +1,16 @@
-// 📊 Solo Leveling - Google Apps Script (改進版)
+// 📊 Solo RPG by BCCT - Google Apps Script
 // 此腳本實現「每天一筆記錄」的更新邏輯，避免重複記錄
+// @version 1.1.0
+// @lastUpdate 2026-02-17
+
+const SCRIPT_VERSION = "1.1.0";
+
+function getVersion() {
+  return ContentService.createTextOutput(JSON.stringify({
+    version: SCRIPT_VERSION,
+    lastUpdate: "2026-02-17"
+  })).setMimeType(ContentService.MimeType.JSON);
+}
 
 function doPost(e) {
   try {
@@ -116,7 +127,8 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify({
       success: true,
       message: '數據已儲存',
-      action: todayRowIndex > 0 ? 'updated' : 'created'
+      action: todayRowIndex > 0 ? 'updated' : 'created',
+      scriptVersion: SCRIPT_VERSION
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
@@ -313,7 +325,8 @@ function doGet(e) {
       hasData: true,
       totalDays: totalDays,
       questData: questData,
-      lastUpdate: todayRow[1] ? new Date(todayRow[1]).toISOString() : null
+      lastUpdate: todayRow[1] ? new Date(todayRow[1]).toISOString() : null,
+      scriptVersion: SCRIPT_VERSION
     }));
     output.setMimeType(ContentService.MimeType.JSON);
     return output;
