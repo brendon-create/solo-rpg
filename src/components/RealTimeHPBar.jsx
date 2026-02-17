@@ -31,17 +31,37 @@ export default function RealTimeHPBar({ questData, onUpdate }) {
       const now = currentTime
       const hour = now.getHours()
 
+      console.log('⏰ 當前時間:', now.toLocaleString('zh-TW'))
+      console.log('🕐 當前小時:', hour)
+
       const waterRecords = questData?.waterRecords || []
 
       if (waterRecords.length === 0) {
-        // 沒有任何飲水記錄，初始狀態為0
+        console.log('❌ 無飲水記錄')
         return 0
       }
 
-      // 只在6:00-21:00期間追蹤，非追蹤時段維持滿分
-      if (hour < 6 || hour >= 21) {
+      // 使用用戶設定的作息時間來判斷是否追蹤
+      const sleepTimeGoals = questData?.sleepTimeGoals || { ok: '22:00' }
+      const wakeTimeGoals = questData?.wakeTimeGoals || { ok: '06:00' }
+      
+      // 解析睡眠時間（取 OK 等級的時間）
+      const sleepHour = parseInt(sleepTimeGoals.ok.split(':')[0]) || 22
+      const wakeHour = parseInt(wakeTimeGoals.ok.split(':')[0]) || 6
+      
+      console.log('⏰ 追蹤時段設定: 起床', wakeHour, ':00 - 睡覺', sleepHour, ':00')
+      
+      // 判斷是否在睡眠時段（不追蹤）
+      const isInSleepTime = (sleepHour < wakeHour) 
+        ? (hour >= sleepHour || hour < wakeHour)  // 跨日（如 22:00-06:00）
+        : (hour >= sleepHour && hour < wakeHour)  // 不跨日（如 23:00-06:00）
+      
+      if (isInSleepTime) {
+        console.log('🌙 睡眠時段，不追蹤飲水，維持50%')
         return 50
       }
+      
+      console.log('☀️ 清醒時段，追蹤飲水')
 
       // 找到最近一次喝水記錄
       const lastRecord = waterRecords[waterRecords.length - 1]
@@ -53,6 +73,9 @@ export default function RealTimeHPBar({ questData, onUpdate }) {
       const lastDrinkTime = new Date(lastRecord.time)
       const lastDrinkAmount = Number(lastRecord.amount) || 0
 
+      console.log('💧 最後喝水時間:', lastDrinkTime.toLocaleString('zh-TW'))
+      console.log('💧 最後喝水量:', lastDrinkAmount, 'cc')
+
       // 驗證時間是否有效
       if (isNaN(lastDrinkTime.getTime())) {
         console.error('無效的飲水時間:', lastRecord.time)
@@ -62,6 +85,8 @@ export default function RealTimeHPBar({ questData, onUpdate }) {
       // 計算距離最後喝水的分鐘數（精確到秒級）
       const secondsSinceLastDrink = Math.floor((now - lastDrinkTime) / 1000)
       const minutesSinceLastDrink = Math.floor(secondsSinceLastDrink / 60)
+      
+      console.log('⏱️ 距離上次喝水:', minutesSinceLastDrink, '分鐘')
 
       // 防止異常的負數或過大值
       if (secondsSinceLastDrink < 0 || minutesSinceLastDrink > 1440) {
@@ -73,21 +98,27 @@ export default function RealTimeHPBar({ questData, onUpdate }) {
       if (lastDrinkAmount >= 200 && minutesSinceLastDrink < 60) {
         // 剛喝完水的前10秒內，直接返回50%
         if (secondsSinceLastDrink < 10) {
+          console.log('✨ 剛喝完水(<10秒)，HP = 50%')
           return 50
         }
         // 從50%開始，在60分鐘內遞減到10%
         const decayRate = 40 / 60 // 每分鐘遞減約0.67%
         const currentHP = 50 - (minutesSinceLastDrink * decayRate)
-        return Math.max(Math.floor(currentHP), 10) // 最低10%
+        const finalHP = Math.max(Math.floor(currentHP), 10)
+        console.log('📉 遞減中:', minutesSinceLastDrink, '分鐘 → HP =', finalHP, '%')
+        return finalHP // 最低10%
       } else if (minutesSinceLastDrink >= 60) {
         // 超過60分鐘沒喝水，降到最低10%（不會變成0或負數）
+        console.log('⚠️ 超過60分鐘，HP = 10%')
         return 10
       } else {
         // 喝的量不足200cc，部分補充
         const partialBonus = (lastDrinkAmount / 200) * 20 // 最多補20%
         const baseHP = 30 - (minutesSinceLastDrink * 40 / 60)
         const finalHP = Math.max(baseHP + partialBonus, 10)
-        return Math.round(Math.min(Math.max(finalHP, 0), 50)) // 確保在 0-50 範圍內
+        const result = Math.round(Math.min(Math.max(finalHP, 0), 50))
+        console.log('🔸 部分補充:', lastDrinkAmount, 'cc → HP =', result, '%')
+        return result // 確保在 0-50 範圍內
       }
     } catch (error) {
       console.error('計算飲水HP時發生錯誤:', error)
@@ -181,6 +212,11 @@ export default function RealTimeHPBar({ questData, onUpdate }) {
   const waterHP = calculateWaterHP()
   const lifestyleHP = calculateLifestyleHP()
   const totalPercentage = waterHP + lifestyleHP
+  
+  // 調試：輸出計算結果
+  console.log('💧 飲水HP計算結果:', waterHP, '%')
+  console.log('🌱 作息HP計算結果:', lifestyleHP, '%')
+  console.log('❤️ 總HP:', totalPercentage, '%')
 
   // 檢查飲水部分是否需要警告（只看飲水那50%，降到10%以下）
   const needsWaterWarning = waterHP <= 10
