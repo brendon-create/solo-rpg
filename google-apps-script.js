@@ -40,6 +40,7 @@ function doPost(e) {
     const row = [
       todayDateString,
       new Date(), // 最後更新時間
+      data.playerName || '',
       data.str?.jogging || false,
       data.str?.weightTraining || false,
       data.str?.hiit || false,
@@ -115,6 +116,7 @@ function initializeSheet(sheet) {
   const headers = [
     '日期',
     '最後更新時間',
+    '玩家名稱',
     'STR_慢跑', 'STR_重訓', 'STR_HIIT',
     'STR_目標1名稱', 'STR_目標1單位', 'STR_目標1初始值', 'STR_目標1目標值', 'STR_目標1當前值',
     'STR_目標2名稱', 'STR_目標2單位', 'STR_目標2初始值', 'STR_目標2目標值', 'STR_目標2當前值',
@@ -207,84 +209,85 @@ function doGet(e) {
     };
     
     const questData = {
+      playerName: todayRow[2] || '',
       str: {
-        jogging: todayRow[2] || false,
-        weightTraining: todayRow[3] || false,
-        hiit: todayRow[4] || false,
+        jogging: todayRow[3] || false,
+        weightTraining: todayRow[4] || false,
+        hiit: todayRow[5] || false,
         goals: {
           goal1: {
-            name: todayRow[5] || '',
-            unit: todayRow[6] || '',
-            initial: todayRow[7] || 0,
-            target: todayRow[8] || 0,
-            current: todayRow[9] || 0
+            name: todayRow[6] || '',
+            unit: todayRow[7] || '',
+            initial: todayRow[8] || 0,
+            target: todayRow[9] || 0,
+            current: todayRow[10] || 0
           },
           goal2: {
-            name: todayRow[10] || '',
-            unit: todayRow[11] || '',
-            initial: todayRow[12] || 0,
-            target: todayRow[13] || 0,
-            current: todayRow[14] || 0
+            name: todayRow[11] || '',
+            unit: todayRow[12] || '',
+            initial: todayRow[13] || 0,
+            target: todayRow[14] || 0,
+            current: todayRow[15] || 0
           },
           goal3: {
-            name: todayRow[15] || '',
-            unit: todayRow[16] || '',
-            initial: todayRow[17] || 0,
-            target: todayRow[18] || 0,
-            current: todayRow[19] || 0
+            name: todayRow[16] || '',
+            unit: todayRow[17] || '',
+            initial: todayRow[18] || 0,
+            target: todayRow[19] || 0,
+            current: todayRow[20] || 0
           }
         }
       },
       hp: {
-        water: todayRow[20] || 0,
-        waterTarget: todayRow[21] || 2400,
-        wakeTime: todayRow[22] || null,
-        sleepTime: todayRow[23] || null,
+        water: todayRow[21] || 0,
+        waterTarget: todayRow[22] || 2400,
+        wakeTime: todayRow[23] || null,
+        sleepTime: todayRow[24] || null,
         waterRecords: [], // 這個需要從前端維護
         wakeTimeGoals: { best: '05:00', great: '05:30', ok: '06:00', late: '06:00+' },
         sleepTimeGoals: { best: '21:00', great: '21:30', ok: '22:00', late: '22:00+' },
         meals: {
-          breakfast: todayRow[24] || false,
-          lunch: todayRow[26] || false,
-          dinner: todayRow[27] || false
+          breakfast: todayRow[25] || false,
+          lunch: todayRow[27] || false,
+          dinner: todayRow[28] || false
         },
         fasting: {
-          breakfastFast: todayRow[25] || false,
-          dinnerFast: todayRow[28] || false,
-          fullDayFast: todayRow[29] || false
+          breakfastFast: todayRow[26] || false,
+          dinnerFast: todayRow[29] || false,
+          fullDayFast: todayRow[30] || false
         }
       },
       int: {
-        tasks: parseTasks(todayRow[30])
-      },
-      mp: {
         tasks: parseTasks(todayRow[31])
       },
-      crt: {
+      mp: {
         tasks: parseTasks(todayRow[32])
       },
+      crt: {
+        tasks: parseTasks(todayRow[33])
+      },
       gold: {
-        income: todayRow[33] || '',
-        incomeTarget: todayRow[34] || 3000,
-        action1Done: todayRow[35] || false,
-        action1Text: todayRow[36] || '',
-        action2Done: todayRow[37] || false,
-        action2Text: todayRow[38] || '',
-        action3Done: todayRow[39] || false,
-        action3Text: todayRow[40] || ''
+        income: todayRow[34] || '',
+        incomeTarget: todayRow[35] || 3000,
+        action1Done: todayRow[36] || false,
+        action1Text: todayRow[37] || '',
+        action2Done: todayRow[38] || false,
+        action2Text: todayRow[39] || '',
+        action3Done: todayRow[40] || false,
+        action3Text: todayRow[41] || ''
       },
       skl: {
-        enabled: todayRow[41] || false,
-        taskName: todayRow[42] || '',
-        completed: todayRow[43] || false
+        enabled: todayRow[42] || false,
+        taskName: todayRow[43] || '',
+        completed: todayRow[44] || false
       },
       rsn: {
-        celebrated: todayRow[44] || false,
-        gratitude: todayRow[45] || ''
+        celebrated: todayRow[45] || false,
+        gratitude: todayRow[46] || ''
       },
       alcohol: {
-        reason: todayRow[46] || '',
-        feeling: todayRow[47] || ''
+        reason: todayRow[47] || '',
+        feeling: todayRow[48] || ''
       },
       lastUpdate: todayRow[1] ? new Date(todayRow[1]).toISOString() : new Date().toISOString()
     };
