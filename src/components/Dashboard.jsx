@@ -145,9 +145,29 @@ export default function Dashboard({ sheetUrl, onReset }) {
           ...cloudData.questData,
           hp: {
             ...cloudData.questData.hp,
-            waterRecords: questData.hp?.waterRecords || [],
+            // 根據時間戳判斷使用哪邊的 waterRecords
+            waterRecords: (localLastUpdate > cloudLastUpdate) ? (questData.hp?.waterRecords || []) : (cloudData.questData.hp?.waterRecords || []),
             // 保留本地較新的飲水量
             water: (questData.hp?.water > cloudData.questData.hp.water) ? questData.hp.water : cloudData.questData.hp.water
+          },
+          // 確保 INT/MP/CRT tasks 有唯一 id，避免狀態連動
+          int: {
+            tasks: (cloudData.questData.int?.tasks || []).map((task) => ({
+              ...task,
+              id: task.id || `int-task-${Math.random().toString(36).substr(2, 9)}`
+            }))
+          },
+          mp: {
+            tasks: (cloudData.questData.mp?.tasks || []).map((task) => ({
+              ...task,
+              id: task.id || `mp-task-${Math.random().toString(36).substr(2, 9)}`
+            }))
+          },
+          crt: {
+            tasks: (cloudData.questData.crt?.tasks || []).map((task) => ({
+              ...task,
+              id: task.id || `crt-task-${Math.random().toString(36).substr(2, 9)}`
+            }))
           }
         }
         

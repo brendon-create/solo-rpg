@@ -138,7 +138,7 @@ export default function STRQuests({ data = {}, onUpdate }) {
         {/* 右側：長期目標 */}
         <div className="lg:col-span-3">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-red-300">💯 長期成長目標（每週更新）</h3>
+            <h3 className="text-sm font-semibold text-red-300">💯 STR目標（每週更新）</h3>
           </div>
           <div className="space-y-4">
             {/* 目標1 */}
