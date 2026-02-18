@@ -1,6 +1,9 @@
 // Google Sheets 整合服務
 // 使用 Google Sheets Web App 作為後端 API
 
+import { REQUIRED_GAS_VERSION } from '../config';
+import { compareVersion } from '../utils/versionManager';
+
 /**
  * 從 Google Sheets URL 提取 Sheet ID
  */
@@ -8,6 +11,34 @@ export const extractSheetId = (url) => {
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)
   return match ? match[1] : null
 }
+
+/**
+ * 檢查 GAS 版本是否過舊
+ * @param {string} currentVersion - 從 API 回傳的當前版本號
+ * @returns {object} { isOutdated: boolean, message: string }
+ */
+export const checkGasVersion = (currentVersion) => {
+  if (!currentVersion) {
+    return {
+      isOutdated: true,
+      message: '無法取得 GAS 版本號，請更新腳本'
+    };
+  }
+  
+  const isOutdated = compareVersion(currentVersion, REQUIRED_GAS_VERSION) < 0;
+  
+  if (isOutdated) {
+    return {
+      isOutdated: true,
+      message: `GAS 版本過舊 (${currentVersion} < ${REQUIRED_GAS_VERSION})，請更新腳本以確保功能正常`
+    };
+  }
+  
+  return {
+    isOutdated: false,
+    message: 'GAS 版本正常'
+  };
+};
 
 /**
  * 初始化 Google Sheet（創建表頭）

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import SetupPage from './components/SetupPage'
 import Dashboard from './components/Dashboard'
-import { initializeSheet, syncToSheet } from './services/googleSheets'
+import GasUpdateModal from './components/GasUpdateModal'
+import { initializeSheet, syncToSheet, checkGasVersion } from './services/googleSheets'
+import { FRONTEND_VERSION, REQUIRED_GAS_VERSION } from './config'
 
 function App() {
   const [showPlayerNameModal, setShowPlayerNameModal] = useState(() => {
@@ -15,6 +17,43 @@ function App() {
   const [isSetup, setIsSetup] = useState(() => {
     return !!localStorage.getItem('solo-rpg-sheet-url')
   })
+  
+  // GAS 版本檢查狀態
+  const [showGasUpdateModal, setShowGasUpdateModal] = useState(false)
+  const [currentGasVersion, setCurrentGasVersion] = useState(null)
+  
+  // 檢查 GAS 版本（在有設定 Web App URL 時）
+  useEffect(() => {
+    const webAppUrl = localStorage.getItem('solo-rpg-webapp-url')
+    if (!webAppUrl) return
+    
+    const checkVersion = async () => {
+      try {
+        const response = await fetch(webAppUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        })
+        const text = await response.text()
+        const result = JSON.parse(text)
+        
+        if (result.scriptVersion) {
+          setCurrentGasVersion(result.scriptVersion)
+          const versionCheck = checkGasVersion(result.scriptVersion)
+          
+          if (versionCheck.isOutdated) {
+            console.warn('⚠️ GAS 版本過舊:', versionCheck.message)
+            setShowGasUpdateModal(true)
+          }
+        }
+      } catch (error) {
+        console.error('❌ GAS 版本檢查失敗:', error)
+      }
+    }
+    
+    // 延遲檢查，確保頁面載入完成
+    const timer = setTimeout(checkVersion, 2000)
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleSetupComplete = async (url) => {
     try {
@@ -79,10 +118,30 @@ function App() {
   }
 
   if (!isSetup) {
-    return <SetupPage onSetupComplete={handleSetupComplete} />
+    return (
+      <>
+        <SetupPage onSetupComplete={handleSetupComplete} />
+        <GasUpdateModal 
+          isOpen={showGasUpdateModal}
+          onClose={() => setShowGasUpdateModal(false)}
+          currentGasVersion={currentGasVersion}
+          requiredGasVersion={REQUIRED_GAS_VERSION}
+        />
+      </>
+    )
   }
 
-  return <Dashboard sheetUrl={sheetUrl} onReset={handleReset} />
+  return (
+    <>
+      <Dashboard sheetUrl={sheetUrl} onReset={handleReset} />
+      <GasUpdateModal 
+        isOpen={showGasUpdateModal}
+        onClose={() => setShowGasUpdateModal(false)}
+        currentGasVersion={currentGasVersion}
+        requiredGasVersion={REQUIRED_GAS_VERSION}
+      />
+    </>
+  )
 }
 
 export default App

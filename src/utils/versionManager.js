@@ -1,8 +1,13 @@
 // 版本管理工具
 // 用於檢查 App 版本並執行資料遷移
 
-export const CURRENT_APP_VERSION = '1.1.0'
-export const REQUIRED_SCRIPT_VERSION = '1.1.0'
+import { FRONTEND_VERSION, REQUIRED_GAS_VERSION } from '../config';
+
+// 前端版本號（從 config.js 導入）
+export const CURRENT_APP_VERSION = FRONTEND_VERSION;
+
+// Google Apps Script 最低相容版本
+export const REQUIRED_SCRIPT_VERSION = REQUIRED_GAS_VERSION;
 
 /**
  * 檢查並執行資料遷移
