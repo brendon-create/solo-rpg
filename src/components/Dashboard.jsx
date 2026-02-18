@@ -226,7 +226,23 @@ export default function Dashboard({ sheetUrl, onReset }) {
         localStorage.setItem('solo-rpg-quests', JSON.stringify(mergedQuestData))
         localStorage.setItem('solo-rpg-total-days', cloudData.totalDays.toString())
 
+        // 🔧 關鍵修復：從雲端同步時，更新今天的 historyData
+        const today = new Date().toISOString().split('T')[0]
+        const todayProgress = calculateTodayProgressFromData(mergedQuestData)
+        const updatedHistory = [...historyData]
+        const todayIndex = updatedHistory.findIndex(h => h.date === today)
+        
+        if (todayIndex >= 0) {
+          updatedHistory[todayIndex] = { date: today, data: todayProgress, rsn: mergedQuestData.rsn }
+        } else {
+          updatedHistory.push({ date: today, data: todayProgress, rsn: mergedQuestData.rsn })
+        }
+        
+        setHistoryData(updatedHistory)
+        localStorage.setItem('solo-rpg-history', JSON.stringify(updatedHistory))
+
         console.log('✅ 已從雲端同步最新數據（waterRecords:', mergedQuestData.hp?.waterRecords?.length || 0, '筆）')
+        console.log('✅ 已更新 historyData (共', updatedHistory.length, '天)')
       } else {
         if (showLog) console.log('ℹ️ 本地數據已是最新')
       }
@@ -325,22 +341,24 @@ export default function Dashboard({ sheetUrl, onReset }) {
       .reverse()
   }
 
-  // 計算今天的任務完成度（0-100%）
-  const calculateTodayProgress = () => {
+  // 從指定的 questData 計算進度
+  const calculateTodayProgressFromData = (data) => {
     const baseStats = [
-      { stat: 'STR', value: calculateSTRToday(), fullMark: 100 },
-      { stat: 'INT', value: calculateINTToday(), fullMark: 100 },
-      { stat: 'MP', value: calculateMPToday(), fullMark: 100 },
-      { stat: 'CRT', value: calculateCRTToday(), fullMark: 100 },
+      { stat: 'STR', value: Math.round((data.str?.dailyTasks?.filter(t => t.completed).length || 0) / (data.str?.dailyTasks?.length || 1) * 100), fullMark: 100 },
+      { stat: 'INT', value: Math.round((data.int?.tasks?.filter(t => t.completed).length || 0) / (data.int?.tasks?.length || 1) * 100), fullMark: 100 },
+      { stat: 'MP', value: Math.round((data.mp?.tasks?.filter(t => t.completed).length || 0) / (data.mp?.tasks?.length || 1) * 100), fullMark: 100 },
+      { stat: 'CRT', value: Math.round((data.crt?.tasks?.filter(t => t.completed).length || 0) / (data.crt?.tasks?.length || 1) * 100), fullMark: 100 },
       { stat: 'GOLD', value: calculateGOLDToday(), fullMark: 100 },
     ]
-
-    // 如果SKL啟用，添加到統計中
-    if (questData.skl?.enabled) {
-      baseStats.push({ stat: 'SKL', value: calculateSKLToday(), fullMark: 100 })
+    if (data.skl?.enabled) {
+      baseStats.push({ stat: 'SKL', value: data.skl?.completed ? 100 : 0, fullMark: 100 })
     }
-
     return baseStats
+  }
+
+  // 計算今天的任務完成度（0-100%）
+  const calculateTodayProgress = () => {
+    return calculateTodayProgressFromData(questData)
   }
 
   const calculateSTRToday = () => {
@@ -522,25 +540,8 @@ export default function Dashboard({ sheetUrl, onReset }) {
     localStorage.setItem('solo-rpg-quests', JSON.stringify(newQuestData))
 
     // 🔧 立即更新 historyData（不等 useEffect）
-    // 注意：這裡使用 newQuestData 來計算最新進度
     const today = new Date().toISOString().split('T')[0]
-    
-    // 使用新的 questData 重新計算進度
-    const calculateProgressWithNewData = (data) => {
-      const baseStats = [
-        { stat: 'STR', value: Math.round((data.str?.dailyTasks?.filter(t => t.completed).length || 0) / (data.str?.dailyTasks?.length || 1) * 100) },
-        { stat: 'INT', value: Math.round((data.int?.tasks?.filter(t => t.completed).length || 0) / (data.int?.tasks?.length || 1) * 100) },
-        { stat: 'MP', value: Math.round((data.mp?.tasks?.filter(t => t.completed).length || 0) / (data.mp?.tasks?.length || 1) * 100) },
-        { stat: 'CRT', value: Math.round((data.crt?.tasks?.filter(t => t.completed).length || 0) / (data.crt?.tasks?.length || 1) * 100) },
-        { stat: 'GOLD', value: calculateGOLDToday() },
-      ]
-      if (data.skl?.enabled) {
-        baseStats.push({ stat: 'SKL', value: data.skl?.completed ? 100 : 0, fullMark: 100 })
-      }
-      return baseStats
-    }
-    
-    const todayProgress = calculateProgressWithNewData(newQuestData)
+    const todayProgress = calculateTodayProgressFromData(newQuestData)
     const newHistory = [...historyData]
     const todayIndex = newHistory.findIndex(h => h.date === today)
     
