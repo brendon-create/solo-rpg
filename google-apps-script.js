@@ -336,13 +336,27 @@ function doGet(e) {
         const sklEnabled = row[41] || false;
         const sklCompleted = row[43] || false;
         
+        // 計算 GOLD
+        const income = parseFloat(row[33]) || 0;
+        const incomeTarget = row[34] || 3000;
+        const actions = [row[35], row[37], row[39]].filter(Boolean).length;
+        const actionScore = actions * 16.67;
+        let incomeScore = 0;
+        if (income <= incomeTarget) {
+          incomeScore = (income / incomeTarget) * 50;
+        } else {
+          const excess = income - incomeTarget;
+          incomeScore = 50 + Math.min((excess / 1000) * 5, 25);
+        }
+        const goldValue = Math.min(actionScore + incomeScore, 100);
+        
         // 計算當天的完成度
         const dayProgress = [
           { stat: 'STR', value: Math.round((strTasks.filter(t => t.completed).length / (strTasks.length || 1)) * 100), fullMark: 100 },
           { stat: 'INT', value: Math.round((intTasks.filter(t => t.completed).length / (intTasks.length || 1)) * 100), fullMark: 100 },
           { stat: 'MP', value: Math.round((mpTasks.filter(t => t.completed).length / (mpTasks.length || 1)) * 100), fullMark: 100 },
           { stat: 'CRT', value: Math.round((crtTasks.filter(t => t.completed).length / (crtTasks.length || 1)) * 100), fullMark: 100 },
-          { stat: 'GOLD', value: 0, fullMark: 100 } // GOLD 計算較複雜，暫時設為0
+          { stat: 'GOLD', value: Math.round(goldValue), fullMark: 100 }
         ];
         
         if (sklEnabled) {
