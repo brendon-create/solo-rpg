@@ -8,6 +8,10 @@
 export function smartDailyReset(currentData) {
   console.log('🔄 執行每日智能重置（保留自訂設定）')
   
+  // ⚠️ 重要：在重置前，確保昨天的數據已經保存到 historyData
+  // 這個邏輯會在 Dashboard 的 useEffect 中處理
+  // 這裡只負責重置任務狀態
+  
   return {
     ...currentData,
     

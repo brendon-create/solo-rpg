@@ -40,6 +40,20 @@ export default function Dashboard({ sheetUrl, onReset }) {
       // 使用智能重置：只重置完成狀態，保留所有自訂設定
       if (shouldResetDaily(data.lastUpdate)) {
         console.log('🌅 凌晨4點已過，執行智能重置')
+        
+        // ⚠️ 重要：在重置前，先確保昨天的數據已保存到 historyData
+        // 因為重置會清空完成狀態，如果不先保存就會丟失昨天的進度
+        const yesterday = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0]
+        const savedHistory = localStorage.getItem('solo-rpg-history')
+        const history = savedHistory ? JSON.parse(savedHistory) : []
+        const yesterdayExists = history.some(h => h.date === yesterday)
+        
+        if (!yesterdayExists) {
+          console.warn('⚠️ 昨天的數據尚未保存！立即保存昨天的最終狀態')
+          // 這種情況不應該發生，但作為保險措施
+          // 我們無法在這裡計算昨天的進度，只能依賴 useEffect 的自動保存
+        }
+        
         return smartDailyReset(data)
       }
       return data
@@ -289,13 +303,19 @@ export default function Dashboard({ sheetUrl, onReset }) {
 
     if (todayIndex >= 0) {
       newHistory[todayIndex] = { date: today, data: todayProgress, rsn: questData.rsn }
+      console.log('📝 更新今日歷史記錄:', today)
     } else {
       newHistory.push({ date: today, data: todayProgress, rsn: questData.rsn })
+      console.log('📝 新增今日歷史記錄:', today)
     }
 
     // 保留所有歷史（不限制天數，因為需要計算累積）
     setHistoryData(newHistory)
     localStorage.setItem('solo-rpg-history', JSON.stringify(newHistory))
+    
+    // 調試：顯示歷史記錄數量
+    console.log('📊 歷史記錄總數:', newHistory.length, '天')
+    console.log('📊 今日進度:', todayProgress)
   }, [questData])
 
   const getRSNHistory = () => {
@@ -393,6 +413,8 @@ export default function Dashboard({ sheetUrl, onReset }) {
   const calculateCumulativeGrowth = (startDay, endDay, includeTodayLive = false) => {
     let periodData = historyData.slice(startDay - 1, endDay)
 
+    console.log(`🔢 計算累積: Day ${startDay} - ${endDay}, 原始數據: ${periodData.length} 筆`)
+
     // 如果要包含今天的實時數據（尚未寫入historyData）
     if (includeTodayLive && endDay === totalDays) {
       const today = new Date().toISOString().split('T')[0]
@@ -400,11 +422,17 @@ export default function Dashboard({ sheetUrl, onReset }) {
 
       if (!todayExists) {
         // 今天的數據還沒在historyData中，手動添加
+        console.log('⚠️ 今天的數據尚未寫入 historyData，手動添加')
         periodData = [...periodData, { date: today, data: calculateTodayProgress() }]
       }
     }
 
-    if (periodData.length === 0) return null
+    if (periodData.length === 0) {
+      console.warn('❌ periodData 為空，無法計算累積')
+      return null
+    }
+    
+    console.log(`📊 實際計算數據: ${periodData.length} 天`, periodData.map(p => p.date))
 
     // 計算這段期間每個屬性的總完成度貢獻
     // 每天完成100%的任務 = 貢獻 1% 到整體100天目標
@@ -458,6 +486,8 @@ export default function Dashboard({ sheetUrl, onReset }) {
     const lastWeekEnd = Math.floor((totalDays - 1) / 7) * 7
     const thisWeekStart = lastWeekEnd + 1
 
+    console.log('📈 計算累積進度: Day 1 ->', totalDays, '(歷史記錄:', historyData.length, '筆)')
+
     // 上週以前的累積
     const lastWeek = lastWeekEnd > 0 ? calculateCumulativeGrowth(1, lastWeekEnd) : null
 
@@ -465,6 +495,11 @@ export default function Dashboard({ sheetUrl, onReset }) {
     const thisWeek = totalDays >= thisWeekStart
       ? calculateCumulativeGrowth(1, totalDays, true) // includeTodayLive = true
       : (lastWeek || calculateCumulativeGrowth(1, totalDays, true)) // 第一週
+
+    // 調試：顯示累積結果
+    if (thisWeek) {
+      console.log('📊 累積進度 (本週):', thisWeek.map(s => `${s.stat}: ${s.value}%`).join(', '))
+    }
 
     return {
       lastWeek,
@@ -485,6 +520,39 @@ export default function Dashboard({ sheetUrl, onReset }) {
     }
     setQuestData(newQuestData)
     localStorage.setItem('solo-rpg-quests', JSON.stringify(newQuestData))
+
+    // 🔧 立即更新 historyData（不等 useEffect）
+    // 注意：這裡使用 newQuestData 來計算最新進度
+    const today = new Date().toISOString().split('T')[0]
+    
+    // 使用新的 questData 重新計算進度
+    const calculateProgressWithNewData = (data) => {
+      const baseStats = [
+        { stat: 'STR', value: Math.round((data.str?.dailyTasks?.filter(t => t.completed).length || 0) / (data.str?.dailyTasks?.length || 1) * 100) },
+        { stat: 'INT', value: Math.round((data.int?.tasks?.filter(t => t.completed).length || 0) / (data.int?.tasks?.length || 1) * 100) },
+        { stat: 'MP', value: Math.round((data.mp?.tasks?.filter(t => t.completed).length || 0) / (data.mp?.tasks?.length || 1) * 100) },
+        { stat: 'CRT', value: Math.round((data.crt?.tasks?.filter(t => t.completed).length || 0) / (data.crt?.tasks?.length || 1) * 100) },
+        { stat: 'GOLD', value: calculateGOLDToday() },
+      ]
+      if (data.skl?.enabled) {
+        baseStats.push({ stat: 'SKL', value: data.skl?.completed ? 100 : 0, fullMark: 100 })
+      }
+      return baseStats
+    }
+    
+    const todayProgress = calculateProgressWithNewData(newQuestData)
+    const newHistory = [...historyData]
+    const todayIndex = newHistory.findIndex(h => h.date === today)
+    
+    if (todayIndex >= 0) {
+      newHistory[todayIndex] = { date: today, data: todayProgress, rsn: newQuestData.rsn }
+    } else {
+      newHistory.push({ date: today, data: todayProgress, rsn: newQuestData.rsn })
+    }
+    
+    setHistoryData(newHistory)
+    localStorage.setItem('solo-rpg-history', JSON.stringify(newHistory))
+    console.log('💾 立即保存歷史記錄:', today, todayProgress)
 
     // 清除舊的計時器
     if (syncTimer) {
