@@ -38,13 +38,6 @@ function App() {
     return !hasSeenPWA
   })
   
-  // 確保背景一直是深色（防止白畫面）
-  useEffect(() => {
-    document.documentElement.style.backgroundColor = '#111827'
-    document.body.style.backgroundColor = '#111827'
-    document.body.style.minHeight = '100vh'
-  }, [])
-  
   // 處理 Splash 動畫完成
   const handleSplashComplete = () => {
     setShowSplash(false)
