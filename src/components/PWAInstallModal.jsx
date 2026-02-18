@@ -66,7 +66,7 @@ export default function PWAInstallModal({ isOpen, onClose }) {
         <div className="text-center mb-6">
           <div className="text-5xl mb-4">📱</div>
           <h3 className="text-2xl font-bold text-purple-300 mb-2">
-            {isInstalled ? '✅ 已安裝為 App' : '將 Solo RPG 安裝到手機'}
+            {isInstalled ? '✅ 已安裝為 App' : showDeviceGuide === 'desktop' ? '將 Solo RPG 安裝到電腦' : '將 Solo RPG 安裝到手機'}
           </h3>
           <p className="text-gray-300">
             {isInstalled 
@@ -136,14 +136,14 @@ export default function PWAInstallModal({ isOpen, onClose }) {
               <div className="text-gray-300 text-sm space-y-3">
                 <p>電腦版使用方式：</p>
                 <div className="space-y-2 ml-2">
-                  <p><span className="text-purple-400 font-bold">1.</span> 如果看到網址列旁邊有 <span className="text-yellow-400 font-bold">「安裝」</span> 圖示，點擊即可安裝</p>
-                  <p><span className="text-purple-400 font-bold">2.</span> 如果沒有安裝圖示，可以將瀏覽器<span className="text-yellow-400 font-bold">最大化</span>使用</p>
-                  <p><span className="text-purple-400 font-bold">3.</span> 已安裝的話，網址列會顯示 <span className="text-yellow-400 font-bold">「Open in Web App」</span></p>
+                  <p><span className="text-purple-400 font-bold">方法一：</span>Chrome/Edge 瀏覽器在網址列旁邊會顯示 <span className="text-yellow-400 font-bold">「安裝」</span> 圖示，點擊即可</p>
+                  <p><span className="text-purple-400 font-bold">方法二：</span>Safari 瀏覽器請點擊上方功能列 <span className="text-yellow-400 font-bold">File → Save to Dock</span></p>
+                  <p><span className="text-purple-400 font-bold">方法三：</span>其他瀏覽器可嘗試 <span className="text-yellow-400 font-bold">Ctrl+Shift+I</span> (Windows) 或 <span className="text-yellow-400 font-bold">Cmd+Option+I</span> (Mac) 打開開發者工具</p>
                 </div>
                 
                 <div className="bg-yellow-900/30 border border-yellow-600 rounded p-3 mt-3">
                   <p className="text-yellow-300 text-xs">
-                    💡 <strong>小提示：</strong>「Open in Web App」表示已安裝完成，可以像 App 一樣使用！
+                    💡 <strong>小提示：</strong>如果網址列顯示「Open in Web App」，表示已安裝完成，可以像 App 一樣使用！
                   </p>
                 </div>
               </div>
