@@ -15,6 +15,7 @@ import ScriptUpdateModal from './ScriptUpdateModal'
 import { syncToSheet, fetchFromSheet } from '../services/googleSheets'
 import { migrateData, isScriptOutdated, REQUIRED_SCRIPT_VERSION } from '../utils/versionManager'
 import { smartDailyReset, shouldResetDaily } from '../utils/dailyReset'
+import { getLocalDateString, getYesterdayString } from '../utils/timezone'
 
 export default function Dashboard({ sheetUrl, onReset }) {
   const [showSettings, setShowSettings] = useState(false)
@@ -43,7 +44,7 @@ export default function Dashboard({ sheetUrl, onReset }) {
         
         // ⚠️ 重要：在重置前，先確保昨天的數據已保存到 historyData
         // 因為重置會清空完成狀態，如果不先保存就會丟失昨天的進度
-        const yesterday = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0]
+        const yesterday = getYesterdayString()
         const savedHistory = localStorage.getItem('solo-rpg-history')
         const history = savedHistory ? JSON.parse(savedHistory) : []
         const yesterdayExists = history.some(h => h.date === yesterday)
@@ -233,7 +234,7 @@ export default function Dashboard({ sheetUrl, onReset }) {
           localStorage.setItem('solo-rpg-history', JSON.stringify(cloudData.historyData))
         } else {
           // 如果雲端沒有歷史數據，更新今天的本地記錄
-          const today = new Date().toISOString().split('T')[0]
+          const today = getLocalDateString()
           const todayProgress = calculateTodayProgressFromData(mergedQuestData)
           const updatedHistory = [...historyData]
           const todayIndex = updatedHistory.findIndex(h => h.date === today)
@@ -317,7 +318,7 @@ export default function Dashboard({ sheetUrl, onReset }) {
 
   // 儲存今日數據到歷史
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = getLocalDateString()
     const todayProgress = calculateTodayProgress()
 
     // 更新歷史記錄
@@ -442,7 +443,7 @@ export default function Dashboard({ sheetUrl, onReset }) {
 
     // 如果要包含今天的實時數據（尚未寫入historyData）
     if (includeTodayLive && endDay === totalDays) {
-      const today = new Date().toISOString().split('T')[0]
+      const today = getLocalDateString()
       const todayExists = historyData.some(h => h.date === today)
 
       if (!todayExists) {
@@ -547,7 +548,7 @@ export default function Dashboard({ sheetUrl, onReset }) {
     localStorage.setItem('solo-rpg-quests', JSON.stringify(newQuestData))
 
     // 🔧 立即更新 historyData（不等 useEffect）
-    const today = new Date().toISOString().split('T')[0]
+    const today = getLocalDateString()
     const todayProgress = calculateTodayProgressFromData(newQuestData)
     const newHistory = [...historyData]
     const todayIndex = newHistory.findIndex(h => h.date === today)
