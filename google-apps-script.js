@@ -1,68 +1,30 @@
 // 📊 Solo RPG by BCCT - Google Apps Script
 // 此腳本實現「每天一筆記錄」的更新邏輯，避免重複記錄
 // 每天第一次打開程式時，自動生成今日記錄（繼承昨日設定，待填狀態歸零）
-// @version 1.2.3
+// @version 1.2.4
 // @lastUpdate 2026-02-19
 
-const SCRIPT_VERSION = "1.2.3";
+const SCRIPT_VERSION = "1.2.4";
 
-// 🔧 前端呼叫：自動生成今日記錄（當沒有今日記錄時）
-// 由前端在每天凌晨4點後第一次開啟時呼叫
-function autoCreateDailyRecord() {
+// 🔧 自動生成今日記錄（整合在 doGet 裡面）
+function autoCreateTodayRecord(sheet, values) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    
-    // 確保表頭存在
-    if (sheet.getLastRow() === 0) {
-      initializeSheet(sheet);
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        action: 'initialized',
-        message: 'Sheet initialized, please try again'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
     // 獲取今天的日期
     const today = new Date();
     const todayDateString = Utilities.formatDate(today, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 
-    // 檢查是否已有今天的記錄
-    const dataRange = sheet.getDataRange();
-    const values = dataRange.getValues();
-    
-    for (let i = 1; i < values.length; i++) {
-      const rowDate = values[i][0];
-      if (rowDate) {
-        const rowDateString = Utilities.formatDate(new Date(rowDate), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-        if (rowDateString === todayDateString) {
-          // 今日記錄已存在，不需要生成
-          return ContentService.createTextOutput(JSON.stringify({
-            success: true,
-            action: 'already_exists',
-            message: 'Today\'s record already exists'
-          })).setMimeType(ContentService.MimeType.JSON);
-        }
-      }
-    }
-
     // 獲取昨天的數據（倒數第一行 = 最後一筆記錄）
     if (values.length < 2) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        action: 'no_yesterday',
-        message: 'No yesterday data to inherit'
-      })).setMimeType(ContentService.MimeType.JSON);
+      Logger.log('⚠️ 沒有昨日數據，無法生成今日記錄');
+      return false;
     }
     
     const yesterdayRow = values[values.length - 1];
     const yesterdayDate = yesterdayRow[0];
     
     if (!yesterdayDate) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        action: 'invalid_yesterday',
-        message: 'Yesterday data is invalid'
-      })).setMimeType(ContentService.MimeType.JSON);
+      Logger.log('⚠️ 昨日數據無效，無法生成今日記錄');
+      return false;
     }
 
     // 解析昨日任務（完成狀態設為 false）
@@ -106,18 +68,11 @@ function autoCreateDailyRecord() {
     sheet.appendRow(todayRow);
     
     Logger.log('✅ 已自動生成今日記錄（繼承昨日設定，待填狀態歸零）');
-    
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      action: 'created',
-      message: 'Today\'s record created from yesterday'
-    })).setMimeType(ContentService.MimeType.JSON);
+    return true;
     
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    Logger.log('❌ 自動生成今日記錄失敗: ' + error.toString());
+    return false;
   }
 }
 
@@ -294,14 +249,8 @@ function initializeSheet(sheet) {
   sheet.setFrozenRows(1);
 }
 
-// 🔧 處理前端呼叫的自動生成請求
+// 🔧 處理前端 GET 請求（每次讀取數據時自動生成今日記錄）
 function doGet(e) {
-  // 檢查是否有 action 參數
-  const action = e.parameter.action;
-  if (action === 'autoCreateDailyRecord') {
-    return autoCreateDailyRecord();
-  }
-
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
@@ -329,6 +278,9 @@ function doGet(e) {
     // 獲取今天的日期
     const today = new Date();
     const todayDateString = Utilities.formatDate(today, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    
+    // 獲取當前小時（台灣時區）
+    const currentHour = parseInt(Utilities.formatDate(today, Session.getScriptTimeZone(), 'HH'));
 
     // 查找今天的記錄
     const dataRange = sheet.getDataRange();
@@ -345,6 +297,32 @@ function doGet(e) {
           todayRow = values[i];
           break;
         }
+      }
+    }
+
+    // 🔧 關鍵：如果沒有今天的記錄且已過凌晨4點，自動生成今日記錄
+    if (!todayRow && currentHour >= 4) {
+      Logger.log('🔄 沒有今日記錄且已過凌晨4點，自動生成今日記錄...');
+      const created = autoCreateTodayRecord(sheet, values);
+      
+      if (created) {
+        // 重新讀取數據
+        const newDataRange = sheet.getDataRange();
+        const newValues = newDataRange.getValues();
+        
+        // 找到新生成的今日記錄
+        for (let i = 1; i < newValues.length; i++) {
+          const rowDate = newValues[i][0];
+          if (rowDate) {
+            const rowDateString = Utilities.formatDate(new Date(rowDate), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+            if (rowDateString === todayDateString) {
+              todayRow = newValues[i];
+              break;
+            }
+          }
+        }
+        
+        Logger.log('✅ 自動生成今日記錄成功');
       }
     }
 

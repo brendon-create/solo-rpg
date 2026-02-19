@@ -10,65 +10,12 @@ export const extractSheetId = (url) => {
 }
 
 /**
- * 檢查是否已過凌晨4點
+ * 檢查是否已過凌晨4點（用於本地邏輯）
  */
 export const isAfter4AM = () => {
   const now = new Date()
   const hours = now.getHours()
   return hours >= 4
-}
-
-/**
- * 自動生成今日記錄（如果沒有今日記錄且已過凌晨4點）
- * 由前端的 fetchFromSheet 自動調用
- */
-export const autoCreateDailyRecord = async () => {
-  try {
-    const webAppUrl = localStorage.getItem('solo-rpg-webapp-url')
-    
-    if (!webAppUrl) {
-      console.warn('⚠️ 尚未設置 Apps Script Web App URL')
-      return { success: false, action: 'no_url', message: 'No Web App URL configured' }
-    }
-
-    // 檢查是否已過凌晨4點
-    if (!isAfter4AM()) {
-      console.log('⏰ 尚未到凌晨4點，不執行自動生成')
-      return { success: false, action: 'before_4am', message: 'Before 4 AM, skipping auto-creation' }
-    }
-
-    console.log('🔄 正在檢查並自動生成今日記錄...')
-
-    // 呼叫 GAS 的 autoCreateDailyRecord 函數
-    // 使用 exec 端點（與 doGet/doPost 相同）
-    const scriptUrl = webAppUrl.replace(/\/exec$/, '').replace(/\/dev$/, '')
-    const autoCreateUrl = `${scriptUrl}?action=autoCreateDailyRecord`
-    
-    const response = await fetch(autoCreateUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const text = await response.text()
-    const result = JSON.parse(text)
-
-    if (result.success) {
-      console.log('✅ 自動生成結果:', result.action, result.message)
-    } else {
-      console.log('⚠️ 自動生成失敗:', result.message)
-    }
-
-    return result
-  } catch (error) {
-    console.error('❌ 自動生成今日記錄失敗:', error)
-    return { success: false, error: error.toString() }
-  }
 }
 
 /**
@@ -177,41 +124,7 @@ export const fetchFromSheet = async () => {
     if (result.success) {
       console.log('✅ 成功從雲端讀取數據', result.hasData ? '(有今日數據)' : '(無今日數據)')
       
-      // 🔧 檢查是否需要自動生成今日記錄
-      // 條件：沒有今日數據 + 已過凌晨4點 + 雲端有昨日數據可以繼承
-      if (!result.hasData && isAfter4AM() && result.questData) {
-        console.log('⏰ 沒有今日數據且已過凌晨4點，嘗試自動生成...')
-        
-        // 呼叫 autoCreateDailyRecord
-        const autoResult = await autoCreateDailyRecord()
-        
-        if (autoResult.success && (autoResult.action === 'created' || autoResult.action === 'already_exists')) {
-          console.log('✅ 自動生成完成，重新讀取數據...')
-          
-          // 重新讀取數據
-          const reResponse = await fetch(webAppUrl, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-          })
-          
-          if (reResponse.ok) {
-            const reText = await reResponse.text()
-            const reResult = JSON.parse(reText)
-            
-            if (reResult.success && reResult.hasData) {
-              console.log('✅ 重新讀取成功，獲得今日數據')
-              return {
-                questData: reResult.questData,
-                totalDays: reResult.totalDays,
-                lastUpdate: reResult.lastUpdate,
-                historyData: reResult.historyData || null,
-                scriptVersion: reResult.scriptVersion || null,
-                hasData: true
-              }
-            }
-          }
-        }
-      }
+      // 現在 GAS 會自動在 doGet 中生成今日記錄，前端只需要正常讀取即可
       
       // 即使 hasData: false，也返回 totalDays 和 scriptVersion（如果有的话）
       if (result.hasData) {
