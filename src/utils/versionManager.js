@@ -2,7 +2,7 @@
 // 用於檢查 App 版本並執行資料遷移
 
 export const CURRENT_APP_VERSION = '1.1.0'
-export const REQUIRED_SCRIPT_VERSION = '1.1.0'
+export const REQUIRED_SCRIPT_VERSION = '1.1.1'
 
 /**
  * 檢查並執行資料遷移
