@@ -181,24 +181,33 @@ export default function Dashboard({ sheetUrl, onReset }) {
           console.log('📝 昨日任務設定來源:', yesterdayQuestData.str?.dailyTasks)
         }
         
+        // 🔧 關鍵修復：從昨日雲端數據獲取任務名稱，但將完成狀態全部重置為 false
+        const resetTasksCompleted = (tasks) => {
+          if (!tasks) return []
+          return tasks.map(t => ({ ...t, completed: false }))
+        }
+        
         const mergedTodayData = {
           ...todayInitialData,
-          // STR 任務：使用昨日雲端設定
+          // STR 任務：使用昨日雲端設定的任務名稱，但全部重置為未完成
           str: yesterdayQuestData?.str ? {
-            dailyTasks: yesterdayQuestData.str.dailyTasks || todayInitialData.str.dailyTasks,
+            dailyTasks: resetTasksCompleted(yesterdayQuestData.str.dailyTasks || todayInitialData.str.dailyTasks),
             goals: yesterdayQuestData.str.goals || todayInitialData.str.goals
           } : {
             dailyTasks: todayInitialData.str.dailyTasks,
             goals: todayInitialData.str.goals
           },
+          // INT：使用昨日名稱，重置完成狀態
           int: yesterdayQuestData?.int ? {
-            tasks: yesterdayQuestData.int.tasks || todayInitialData.int.tasks
+            tasks: resetTasksCompleted(yesterdayQuestData.int.tasks || todayInitialData.int.tasks)
           } : { tasks: todayInitialData.int.tasks },
+          // MP：使用昨日名稱，重置完成狀態
           mp: yesterdayQuestData?.mp ? {
-            tasks: yesterdayQuestData.mp.tasks || todayInitialData.mp.tasks
+            tasks: resetTasksCompleted(yesterdayQuestData.mp.tasks || todayInitialData.mp.tasks)
           } : { tasks: todayInitialData.mp.tasks },
+          // CRT：使用昨日名稱，重置完成狀態
           crt: yesterdayQuestData?.crt ? {
-            tasks: yesterdayQuestData.crt.tasks || todayInitialData.crt.tasks
+            tasks: resetTasksCompleted(yesterdayQuestData.crt.tasks || todayInitialData.crt.tasks)
           } : { tasks: todayInitialData.crt.tasks },
           gold: yesterdayQuestData?.gold ? {
             income: '',
