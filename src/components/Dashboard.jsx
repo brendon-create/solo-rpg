@@ -292,17 +292,116 @@ export default function Dashboard({ sheetUrl, onReset }) {
       const localLastUpdate = questData.lastUpdate ? new Date(questData.lastUpdate).getTime() : 0
       const cloudLastUpdate = cloudData.lastUpdate ? new Date(cloudData.lastUpdate).getTime() : 0
 
+      // 執行資料遷移（如果需要）
+      const migratedCloudData = migrateData(cloudData.questData)
+
+      // 🔧 檢查任務是否被初始化為預設值（需要從昨日繼承）
+      const isDefaultTasks = (tasks, defaults) => {
+        if (!tasks || tasks.length === 0) return true
+        if (!defaults || defaults.length === 0) return false
+        // 檢查任務名稱是否與預設值相同
+        return tasks.every((t, i) => t.name === defaults[i]?.name)
+      }
+      
+      const defaultTasks = getInitialQuestData()
+      const cloudStrTasks = migratedCloudData.str?.dailyTasks || []
+      const defaultStrTasks = defaultTasks.str.dailyTasks
+      const needsInheritance = isDefaultTasks(cloudStrTasks, defaultStrTasks)
+      
       if (showLog) {
         console.log('📊 本地更新時間:', localLastUpdate ? new Date(localLastUpdate).toLocaleString() : '無數據（初始狀態）')
         console.log('☁️ 雲端更新時間:', cloudLastUpdate ? new Date(cloudLastUpdate).toLocaleString() : '無數據')
+        console.log('🔍 雲端 STR 任務:', cloudStrTasks.map(t => t.name))
+        console.log('🔍 預設 STR 任務:', defaultStrTasks.map(t => t.name))
+        console.log('🔍 需要從昨日繼承?:', needsInheritance)
       }
 
-      // 如果本地無真實數據（lastUpdate 為 null），或雲端數據較新，使用雲端數據
+      // 如果任務是預設值（初始化），需要從昨日數據繼承
+      if (needsInheritance) {
+        if (showLog) console.log('🔄 任務為預設值，執行「從昨日繼承」邏輯...')
+        
+        // 🔧 從 cloudData.questData 獲取昨日數據（已由 GAS 傳回）
+        const yesterdayQuestData = cloudData.questData
+        
+        if (showLog && yesterdayQuestData) {
+          console.log('📝 昨日 STR 任務:', yesterdayQuestData.str?.dailyTasks?.map(t => t.name))
+        }
+        
+        // 從昨日雲端數據獲取任務名稱，但將完成狀態全部重置為 false
+        const resetTasksCompleted = (tasks) => {
+          if (!tasks) return []
+          return tasks.map(t => ({ ...t, completed: false }))
+        }
+        
+        const mergedTodayData = {
+          ...migratedCloudData,
+          // STR 任務：使用昨日雲端設定的任務名稱，但全部重置為未完成
+          str: yesterdayQuestData?.str ? {
+            dailyTasks: resetTasksCompleted(yesterdayQuestData.str.dailyTasks || migratedCloudData.str?.dailyTasks),
+            goals: yesterdayQuestData.str.goals || migratedCloudData.str?.goals
+          } : migratedCloudData.str,
+          // INT：使用昨日名稱，重置完成狀態
+          int: yesterdayQuestData?.int ? {
+            tasks: resetTasksCompleted(yesterdayQuestData.int.tasks || migratedCloudData.int?.tasks)
+          } : migratedCloudData.int,
+          // MP：使用昨日名稱，重置完成狀態
+          mp: yesterdayQuestData?.mp ? {
+            tasks: resetTasksCompleted(yesterdayQuestData.mp.tasks || migratedCloudData.mp?.tasks)
+          } : migratedCloudData.mp,
+          // CRT：使用昨日名稱，重置完成狀態
+          crt: yesterdayQuestData?.crt ? {
+            tasks: resetTasksCompleted(yesterdayQuestData.crt.tasks || migratedCloudData.crt?.tasks)
+          } : migratedCloudData.crt,
+          gold: yesterdayQuestData?.gold ? {
+            income: '',
+            incomeTarget: yesterdayQuestData.gold?.incomeTarget || migratedCloudData.gold?.incomeTarget,
+            action1Done: false,
+            action1Text: yesterdayQuestData.gold?.action1Text || '',
+            action2Done: false,
+            action2Text: yesterdayQuestData.gold?.action2Text || '',
+            action3Done: false,
+            action3Text: yesterdayQuestData.gold?.action3Text || ''
+          } : { ...migratedCloudData.gold, income: '', action1Done: false, action2Done: false, action3Done: false },
+          skl: yesterdayQuestData?.skl ? {
+            enabled: yesterdayQuestData.skl?.enabled !== undefined ? yesterdayQuestData.skl.enabled : true,
+            taskName: yesterdayQuestData.skl?.taskName || migratedCloudData.skl?.taskName,
+            completed: false
+          } : { ...migratedCloudData.skl, completed: false },
+          hp: migratedCloudData.hp ? {
+            ...migratedCloudData.hp,
+            water: 0,
+            waterRecords: [],
+            wakeTime: null,
+            sleepTime: null,
+            meals: { breakfast: false, lunch: false, dinner: false },
+            fasting: { breakfastFast: false, dinnerFast: false, fullDayFast: false }
+          } : getInitialQuestData().hp,
+          rsn: { celebrated: false, gratitude: '' },
+          alcohol: yesterdayQuestData?.alcohol ? {
+            enabled: yesterdayQuestData.alcohol?.enabled !== undefined ? yesterdayQuestData.alcohol.enabled : true,
+            reason: '',
+            feeling: ''
+          } : { enabled: true, reason: '', feeling: '' }
+        }
+        
+        if (showLog) console.log('✅ 已從昨日繼承任務（STR任務:', mergedTodayData.str?.dailyTasks?.map(t => t.name), ')')
+        
+        setQuestData(mergedTodayData)
+        localStorage.setItem('solo-rpg-quests', JSON.stringify(mergedTodayData))
+        
+        // 立即同步到雲端，更新今日記錄
+        if (showLog) console.log('🔄 同步到雲端，更新任務名稱...')
+        syncToSheet(sheetUrl, {
+          date: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
+          ...mergedTodayData
+        }).catch(err => console.error('同步失敗:', err))
+        
+        return
+      }
+      
+      // 正常同步邏輯（雲端數據較新且不是預設值）
       if (!questData.lastUpdate || cloudLastUpdate > localLastUpdate) {
         console.log('✅ 雲端數據較新，正在同步到本地...')
-
-        // 執行資料遷移（如果需要）
-        const migratedCloudData = migrateData(cloudData.questData)
 
         // 智能合併：取兩邊較新的數據
         console.log('🔍 雲端 waterRecords 數量:', cloudData.questData.hp?.waterRecords?.length || 0)
