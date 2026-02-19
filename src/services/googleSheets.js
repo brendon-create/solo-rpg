@@ -118,8 +118,15 @@ export const fetchFromSheet = async () => {
     
     const text = await response.text()
     console.log('📥 收到回應長度:', text.length, '字元')
-    
-    const result = JSON.parse(text)
+    console.log('📄 實際回應內容:', text) // 🔧 調試：顯示實際返回的文本
+
+    let result
+    try {
+      result = JSON.parse(text)
+    } catch (parseError) {
+      console.error('❌ JSON 解析失敗:', parseError)
+      return null
+    }
     
     if (result.success) {
       console.log('✅ 成功從雲端讀取數據', result.hasData ? '(有今日數據)' : '(無今日數據)')
