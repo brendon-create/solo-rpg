@@ -1,10 +1,10 @@
 // 📊 Solo RPG by BCCT - Google Apps Script
 // 此腳本實現「每天一筆記錄」的更新邏輯，避免重複記錄
 // 每天第一次打開程式時，自動生成今日記錄（繼承昨日設定，待填狀態歸零）
-// @version 1.2.1
+// @version 1.2.2
 // @lastUpdate 2026-02-19
 
-const SCRIPT_VERSION = "1.2.1";
+const SCRIPT_VERSION = "1.2.2";
 
 // 🔧 前端呼叫：自動生成今日記錄（當沒有今日記錄時）
 // 由前端在每天凌晨4點後第一次開啟時呼叫
