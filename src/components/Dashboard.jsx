@@ -137,24 +137,8 @@ export default function Dashboard({ sheetUrl, onReset }) {
       if (showLog) console.log('🔄 檢查雲端數據...')
       const cloudData = await fetchFromSheet()
 
-      if (!cloudData || !cloudData.hasData) {
-        if (showLog) {
-          if (!cloudData) {
-            console.log('ℹ️ 雲端讀取失敗')
-          } else {
-            console.log('ℹ️ 雲端無今日數據，但有歷史數據:', cloudData.totalDays, '天')
-            // 即使沒有今日數據，也嘗試同步 totalDays 和歷史數據
-            if (cloudData.totalDays) {
-              setTotalDays(cloudData.totalDays)
-              localStorage.setItem('solo-rpg-total-days', cloudData.totalDays.toString())
-            }
-            if (cloudData.historyData && cloudData.historyData.length > 0) {
-              setHistoryData(cloudData.historyData)
-              localStorage.setItem('solo-rpg-history', JSON.stringify(cloudData.historyData))
-              if (showLog) console.log('✅ 已同步歷史數據 (共', cloudData.historyData.length, '天)')
-            }
-          }
-        }
+      if (!cloudData) {
+        if (showLog) console.log('ℹ️ 雲端無數據或讀取失敗')
         return
       }
 
@@ -165,6 +149,30 @@ export default function Dashboard({ sheetUrl, onReset }) {
           console.warn(`⚠️ Apps Script 版本過舊: ${cloudData.scriptVersion} (需要 ${REQUIRED_SCRIPT_VERSION})`)
           setShowScriptUpdateModal(true)
         }
+      }
+
+      // 🔧 處理 hasData: false 的情況：仍要同步 totalDays 和 historyData
+      if (!cloudData.hasData) {
+        if (showLog) console.log('ℹ️ 雲端無今日數據，但同步歷史記錄...')
+        
+        // 同步 totalDays
+        if (cloudData.totalDays && cloudData.totalDays > 0) {
+          if (totalDays !== cloudData.totalDays) {
+            setTotalDays(cloudData.totalDays)
+            localStorage.setItem('solo-rpg-total-days', cloudData.totalDays.toString())
+            if (showLog) console.log('✅ 已同步 totalDays:', cloudData.totalDays)
+          }
+        }
+        
+        // 同步 historyData（如果有的话）
+        if (cloudData.historyData && cloudData.historyData.length > 0) {
+          setHistoryData(cloudData.historyData)
+          localStorage.setItem('solo-rpg-history', JSON.stringify(cloudData.historyData))
+          if (showLog) console.log('✅ 已同步 historyData (共', cloudData.historyData.length, '天)')
+        }
+        
+        // 沒有今日數據，不需要 further processing
+        return
       }
 
       // 比較本地和雲端的時間戳
