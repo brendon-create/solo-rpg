@@ -195,7 +195,9 @@ export default function Dashboard({ sheetUrl, onReset }) {
         console.log('🔍 雲端 waterRecords 數量:', cloudData.questData.hp?.waterRecords?.length || 0)
         console.log('🔍 雲端 waterRecords 資料:', cloudData.questData.hp?.waterRecords)
         
-        // 🔧 修復：保留本地自定義任務名稱，不要被雲端預設值覆蓋
+        // 🔧 修復：直接從 localStorage 讀取本地任務名稱（不用 React state，因為異步更新可能還沒完成）
+        const localQuestData = JSON.parse(localStorage.getItem('solo-rpg-quests') || '{}')
+        
         const mergeTasksWithLocalNames = (cloudTasks, localTasks) => {
           if (!cloudTasks || cloudTasks.length === 0) return localTasks || []
           if (!localTasks || localTasks.length === 0) return cloudTasks
@@ -209,45 +211,45 @@ export default function Dashboard({ sheetUrl, onReset }) {
         
         const mergedQuestData = {
           ...migratedCloudData,
-          // 🔧 關鍵修復：使用本地的任務名稱（用戶自定義的）
+          // 🔧 關鍵修復：使用本地存儲的任務名稱（用戶自定義的）
           str: {
             ...migratedCloudData.str,
             dailyTasks: mergeTasksWithLocalNames(
               migratedCloudData.str?.dailyTasks,
-              questData.str?.dailyTasks
+              localQuestData.str?.dailyTasks
             ),
             // 也保留本地設定的目標名稱
             goals: {
-              goal1: { ...migratedCloudData.str?.goals?.goal1, ...questData.str?.goals?.goal1, name: questData.str?.goals?.goal1?.name || migratedCloudData.str?.goals?.goal1?.name },
-              goal2: { ...migratedCloudData.str?.goals?.goal2, ...questData.str?.goals?.goal2, name: questData.str?.goals?.goal2?.name || migratedCloudData.str?.goals?.goal2?.name },
-              goal3: { ...migratedCloudData.str?.goals?.goal3, ...questData.str?.goals?.goal3, name: questData.str?.goals?.goal3?.name || migratedCloudData.str?.goals?.goal3?.name }
+              goal1: { ...migratedCloudData.str?.goals?.goal1, ...localQuestData.str?.goals?.goal1, name: localQuestData.str?.goals?.goal1?.name || migratedCloudData.str?.goals?.goal1?.name },
+              goal2: { ...migratedCloudData.str?.goals?.goal2, ...localQuestData.str?.goals?.goal2, name: localQuestData.str?.goals?.goal2?.name || migratedCloudData.str?.goals?.goal2?.name },
+              goal3: { ...migratedCloudData.str?.goals?.goal3, ...localQuestData.str?.goals?.goal3, name: localQuestData.str?.goals?.goal3?.name || migratedCloudData.str?.goals?.goal3?.name }
             }
           },
           int: {
             ...migratedCloudData.int,
             tasks: mergeTasksWithLocalNames(
               migratedCloudData.int?.tasks,
-              questData.int?.tasks
+              localQuestData.int?.tasks
             )
           },
           mp: {
             ...migratedCloudData.mp,
             tasks: mergeTasksWithLocalNames(
               migratedCloudData.mp?.tasks,
-              questData.mp?.tasks
+              localQuestData.mp?.tasks
             )
           },
           crt: {
             ...migratedCloudData.crt,
             tasks: mergeTasksWithLocalNames(
               migratedCloudData.crt?.tasks,
-              questData.crt?.tasks
+              localQuestData.crt?.tasks
             )
           },
           // 保留本地的 SKL 任務名稱
           skl: {
             ...migratedCloudData.skl,
-            taskName: questData.skl?.taskName || migratedCloudData.skl?.taskName
+            taskName: localQuestData.skl?.taskName || migratedCloudData.skl?.taskName
           },
           // HP 數據直接使用雲端的（包含完整歷史記錄）
           hp: {
