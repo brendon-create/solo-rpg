@@ -1,9 +1,6 @@
 // Google Sheets 整合服務
 // 使用 Google Sheets Web App 作為後端 API
 
-import { REQUIRED_GAS_VERSION } from '../config';
-import { compareVersion } from '../utils/versionManager';
-
 /**
  * 從 Google Sheets URL 提取 Sheet ID
  */
@@ -11,34 +8,6 @@ export const extractSheetId = (url) => {
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)
   return match ? match[1] : null
 }
-
-/**
- * 檢查 GAS 版本是否過舊
- * @param {string} currentVersion - 從 API 回傳的當前版本號
- * @returns {object} { isOutdated: boolean, message: string }
- */
-export const checkGasVersion = (currentVersion) => {
-  if (!currentVersion) {
-    return {
-      isOutdated: true,
-      message: '無法取得 GAS 版本號，請更新腳本'
-    };
-  }
-  
-  const isOutdated = compareVersion(currentVersion, REQUIRED_GAS_VERSION) < 0;
-  
-  if (isOutdated) {
-    return {
-      isOutdated: true,
-      message: `GAS 版本過舊 (${currentVersion} < ${REQUIRED_GAS_VERSION})，請更新腳本以確保功能正常`
-    };
-  }
-  
-  return {
-    isOutdated: false,
-    message: 'GAS 版本正常'
-  };
-};
 
 /**
  * 初始化 Google Sheet（創建表頭）
@@ -142,41 +111,21 @@ export const fetchFromSheet = async () => {
     
     const result = JSON.parse(text)
     
-    if (result.success) {
-      if (result.hasData) {
-        // 今天有數據
-        console.log('✅ 成功從雲端讀取數據')
-        if (result.historyData) {
-          console.log('📚 包含歷史數據:', result.historyData.length, '天')
-        }
-        return {
-          questData: result.questData,
-          totalDays: result.totalDays,
-          lastUpdate: result.lastUpdate,
-          historyData: result.historyData || null,
-          scriptVersion: result.scriptVersion || null
-        }
-      } else if (result.historyData && result.historyData.length > 0) {
-        // 🔧 修正：今天沒數據但有歷史數據（用於雷達圖）
-        console.log('✅ 雲端無今日數據，但有歷史數據:', result.historyData.length, '天')
-        return {
-          questData: null,
-          totalDays: result.totalDays,
-          lastUpdate: null,
-          historyData: result.historyData,
-          scriptVersion: result.scriptVersion || null
-        }
-      } else {
-        // 🔧 修復：即使沒有任何數據，也返回包含 scriptVersion 的物件以進行版本檢查
-        console.log('ℹ️ 雲端尚無任何數據')
-        return {
-          questData: null,
-          totalDays: result.totalDays || 0,
-          lastUpdate: null,
-          historyData: null,
-          scriptVersion: result.scriptVersion || null
-        }
+    if (result.success && result.hasData) {
+      console.log('✅ 成功從雲端讀取數據')
+      if (result.historyData) {
+        console.log('📚 包含歷史數據:', result.historyData.length, '天')
       }
+      return {
+        questData: result.questData,
+        totalDays: result.totalDays,
+        lastUpdate: result.lastUpdate,
+        historyData: result.historyData || null,
+        scriptVersion: result.scriptVersion || null
+      }
+    } else {
+      console.log('ℹ️ 雲端尚無今日數據')
+      return null
     }
   } catch (error) {
     console.error('❌ 從雲端讀取數據失敗:', error)

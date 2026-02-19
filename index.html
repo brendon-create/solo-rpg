@@ -30,57 +30,10 @@
     <!-- Theme Color -->
     <meta name="theme-color" content="#7c3aed" />
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-    
     <title>⚔️ Solo RPG by BCCT - 100 天挑戰追蹤器</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    
-    <!-- Service Worker Registration -->
-    <script>
-      (function() {
-        if ('serviceWorker' in navigator) {
-          window.addEventListener('load', async () => {
-            try {
-              const registration = await navigator.serviceWorker.register('/sw.js', {
-                scope: '/'
-              });
-              
-              console.log('✅ Service Worker 註冊成功:', registration.scope);
-              
-              // 檢查更新
-              registration.addEventListener('updatefound', () => {
-                console.log('🔄 發現新版本 Service Worker');
-                const newWorker = registration.installing;
-                
-                newWorker.addEventListener('statechange', () => {
-                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    console.log('📦 新版本已就緒，即將更新...');
-                    // 自動更新
-                    newWorker.postMessage({ type: 'SKIP_WAITING' });
-                    
-                    // 通知前端
-                    if (window.dispatchEvent) {
-                      window.dispatchEvent(new CustomEvent('swUpdateReady'));
-                    }
-                  }
-                });
-              });
-              
-            } catch (error) {
-              console.error('❌ Service Worker 註冊失敗:', error);
-            }
-          });
-          
-          // 監聽 SW 訊息
-          navigator.serviceWorker.addEventListener('message', (event) => {
-            console.log('📨 收到 Service Worker 訊息:', event.data);
-          });
-        }
-      })();
-    </script>
   </body>
 </html>

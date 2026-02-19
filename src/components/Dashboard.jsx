@@ -15,7 +15,6 @@ import ScriptUpdateModal from './ScriptUpdateModal'
 import { syncToSheet, fetchFromSheet } from '../services/googleSheets'
 import { migrateData, isScriptOutdated, REQUIRED_SCRIPT_VERSION } from '../utils/versionManager'
 import { smartDailyReset, shouldResetDaily } from '../utils/dailyReset'
-import { getLocalDateString, getYesterdayString } from '../utils/timezone'
 
 export default function Dashboard({ sheetUrl, onReset }) {
   const [showSettings, setShowSettings] = useState(false)
@@ -44,7 +43,7 @@ export default function Dashboard({ sheetUrl, onReset }) {
         
         // ⚠️ 重要：在重置前，先確保昨天的數據已保存到 historyData
         // 因為重置會清空完成狀態，如果不先保存就會丟失昨天的進度
-        const yesterday = getYesterdayString()
+        const yesterday = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0]
         const savedHistory = localStorage.getItem('solo-rpg-history')
         const history = savedHistory ? JSON.parse(savedHistory) : []
         const yesterdayExists = history.some(h => h.date === yesterday)
@@ -152,18 +151,6 @@ export default function Dashboard({ sheetUrl, onReset }) {
         }
       }
 
-      // 🔧 修正：如果今天沒數據但有歷史數據（用於雷達圖）
-      if (!cloudData.questData) {
-        if (cloudData.historyData && cloudData.historyData.length > 0) {
-          console.log('📚 雲端無今日數據，但有歷史數據:', cloudData.historyData.length, '天')
-          setTotalDays(cloudData.totalDays)
-          setHistoryData(cloudData.historyData)
-          localStorage.setItem('solo-rpg-history', JSON.stringify(cloudData.historyData))
-          localStorage.setItem('solo-rpg-total-days', cloudData.totalDays.toString())
-        }
-        return
-      }
-
       // 比較本地和雲端的時間戳
       const localLastUpdate = questData.lastUpdate ? new Date(questData.lastUpdate).getTime() : 0
       const cloudLastUpdate = cloudData.lastUpdate ? new Date(cloudData.lastUpdate).getTime() : 0
@@ -246,7 +233,7 @@ export default function Dashboard({ sheetUrl, onReset }) {
           localStorage.setItem('solo-rpg-history', JSON.stringify(cloudData.historyData))
         } else {
           // 如果雲端沒有歷史數據，更新今天的本地記錄
-          const today = getLocalDateString()
+          const today = new Date().toISOString().split('T')[0]
           const todayProgress = calculateTodayProgressFromData(mergedQuestData)
           const updatedHistory = [...historyData]
           const todayIndex = updatedHistory.findIndex(h => h.date === today)
@@ -330,7 +317,7 @@ export default function Dashboard({ sheetUrl, onReset }) {
 
   // 儲存今日數據到歷史
   useEffect(() => {
-    const today = getLocalDateString()
+    const today = new Date().toISOString().split('T')[0]
     const todayProgress = calculateTodayProgress()
 
     // 更新歷史記錄
@@ -455,7 +442,7 @@ export default function Dashboard({ sheetUrl, onReset }) {
 
     // 如果要包含今天的實時數據（尚未寫入historyData）
     if (includeTodayLive && endDay === totalDays) {
-      const today = getLocalDateString()
+      const today = new Date().toISOString().split('T')[0]
       const todayExists = historyData.some(h => h.date === today)
 
       if (!todayExists) {
@@ -560,7 +547,7 @@ export default function Dashboard({ sheetUrl, onReset }) {
     localStorage.setItem('solo-rpg-quests', JSON.stringify(newQuestData))
 
     // 🔧 立即更新 historyData（不等 useEffect）
-    const today = getLocalDateString()
+    const today = new Date().toISOString().split('T')[0]
     const todayProgress = calculateTodayProgressFromData(newQuestData)
     const newHistory = [...historyData]
     const todayIndex = newHistory.findIndex(h => h.date === today)

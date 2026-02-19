@@ -1,9 +1,9 @@
 // 📊 Solo RPG by BCCT - Google Apps Script
 // 此腳本實現「每天一筆記錄」的更新邏輯，避免重複記錄
-// @version 1.2.1
-// @lastUpdate 2026-02-19
+// @version 1.1.0
+// @lastUpdate 2026-02-17
 
-const SCRIPT_VERSION = "1.2.1";
+const SCRIPT_VERSION = "1.1.0";
 
 function getVersion() {
   return ContentService.createTextOutput(JSON.stringify({
@@ -186,8 +186,7 @@ function doGet(e) {
       const output = ContentService.createTextOutput(JSON.stringify({
         success: true,
         hasData: false,
-        message: 'Sheet is empty',
-        scriptVersion: SCRIPT_VERSION
+        message: 'Sheet is empty'
       }));
       output.setMimeType(ContentService.MimeType.JSON);
       return output;
@@ -215,7 +214,19 @@ function doGet(e) {
       }
     }
 
-    // 輔助函數：解析任務字串
+    // 如果沒有今天的記錄，返回總天數和空數據
+    if (!todayRow) {
+      const output = ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        hasData: false,
+        totalDays: totalDays,
+        message: 'No data for today'
+      }));
+      output.setMimeType(ContentService.MimeType.JSON);
+      return output;
+    }
+
+    // 解析今天的數據（按照 sheet 的欄位順序）
     const parseTasks = (taskString) => {
       if (!taskString) return [];
       return taskString.split(';').map((item, index) => {
@@ -225,75 +236,6 @@ function doGet(e) {
         return { id, name, completed: completed === 'true' };
       });
     };
-
-    // 🔧 修正：即使沒有今天的記錄，仍返回歷史數據（用於雷達圖）
-    if (!todayRow) {
-      // 計算歷史數據
-      const historyData = [];
-      for (let i = 1; i < values.length; i++) {
-        const row = values[i];
-        const rowDate = row[0];
-        if (rowDate) {
-          const rowDateString = Utilities.formatDate(new Date(rowDate), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-          
-          // 解析每天的進度
-          const strTasks = parseTasks(row[3]);
-          const intTasks = parseTasks(row[30]);
-          const mpTasks = parseTasks(row[31]);
-          const crtTasks = parseTasks(row[32]);
-          const sklEnabled = row[41] || false;
-          const sklCompleted = row[43] || false;
-          
-          // 計算 GOLD
-          const income = parseFloat(row[33]) || 0;
-          const incomeTarget = row[34] || 3000;
-          const actions = [row[35], row[37], row[39]].filter(Boolean).length;
-          const actionScore = actions * 16.67;
-          let incomeScore = 0;
-          if (income <= incomeTarget) {
-            incomeScore = (income / incomeTarget) * 50;
-          } else {
-            const excess = income - incomeTarget;
-            incomeScore = 50 + Math.min((excess / 1000) * 5, 25);
-          }
-          const goldValue = Math.min(actionScore + incomeScore, 100);
-          
-          // 計算當天的完成度
-          const dayProgress = [
-            { stat: 'STR', value: Math.round((strTasks.filter(t => t.completed).length / (strTasks.length || 1)) * 100), fullMark: 100 },
-            { stat: 'INT', value: Math.round((intTasks.filter(t => t.completed).length / (intTasks.length || 1)) * 100), fullMark: 100 },
-            { stat: 'MP', value: Math.round((mpTasks.filter(t => t.completed).length / (mpTasks.length || 1)) * 100), fullMark: 100 },
-            { stat: 'CRT', value: Math.round((crtTasks.filter(t => t.completed).length / (crtTasks.length || 1)) * 100), fullMark: 100 },
-            { stat: 'GOLD', value: Math.round(goldValue), fullMark: 100 }
-          ];
-          
-          if (sklEnabled) {
-            dayProgress.push({ stat: 'SKL', value: sklCompleted ? 100 : 0, fullMark: 100 });
-          }
-          
-          historyData.push({
-            date: rowDateString,
-            data: dayProgress,
-            rsn: {
-              celebrated: row[44] || false,
-              gratitude: row[45] || ''
-            }
-          });
-        }
-      }
-      
-      // 🔧 修復：確保 hasData: false 時也返回 scriptVersion
-      const output = ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        hasData: false,
-        totalDays: totalDays,
-        historyData: historyData,
-        message: 'No data for today, but history data returned',
-        scriptVersion: SCRIPT_VERSION
-      }));
-      output.setMimeType(ContentService.MimeType.JSON);
-      return output;
-    }
 
     const questData = {
       playerName: todayRow[2] || '',
@@ -440,7 +382,7 @@ function doGet(e) {
         hasData: true,
         totalDays: totalDays,
         questData: questData,
-        historyData: historyData,
+        historyData: historyData, // 新增：返回所有歷史數據
         lastUpdate: todayRow[1] ? new Date(todayRow[1]).toISOString() : null,
         scriptVersion: SCRIPT_VERSION
       };
@@ -456,7 +398,7 @@ function doGet(e) {
         hasData: true,
         totalDays: totalDays,
         questData: questData,
-        historyData: null,
+        historyData: null, // 發生錯誤時不返回歷史數據
         lastUpdate: todayRow[1] ? new Date(todayRow[1]).toISOString() : null,
         scriptVersion: SCRIPT_VERSION,
         warning: 'historyData too large or invalid'
