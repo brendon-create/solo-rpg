@@ -1,6 +1,22 @@
 <!doctype html>
 <html lang="zh-TW">
   <head>
+    <script>
+      (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // 如果網址包含 ?reset=1
+        if (urlParams.has('reset')) {
+          localStorage.clear();
+          sessionStorage.clear();
+          console.log("LocalStorage 已清空");
+          
+          // 強制導向回乾淨的網址，並加上時間戳記確保讀取最新程式
+          const cleanUrl = window.location.origin + window.location.pathname + '?v=' + Date.now();
+          window.location.replace(cleanUrl);
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
