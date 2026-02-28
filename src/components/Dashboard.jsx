@@ -163,6 +163,18 @@ export default function Dashboard({ sheetUrl, onReset }) {
 
       // 🔧 處理 hasData: false 的情況：需要為今天建立新記錄
       if (!cloudData.hasData) {
+        // 檢查現在是否已過凌晨4點
+        const now = new Date()
+        const currentHour = now.getHours()
+        const isAfter4AM = currentHour >= 4
+        
+        // 如果還沒過凌晨4點，不要執行重置邏輯，保留昨日資料
+        if (!isAfter4AM) {
+          if (showLog) console.log('⏰ 尚未過凌晨4點，保留本地數據，不執行重置')
+          setIsSyncing(false)
+          return
+        }
+        
         if (showLog) console.log('ℹ️ 雲端無今日數據，執行「繼承昨日設定」邏輯...')
         
         // 同步 totalDays
